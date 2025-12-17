@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #333;
+            font-family: Arial, sans-serif;
+            touch-action: manipulation; /* Better mobile touch controls */
+        }
+        #start-menu, #game-over-menu, #win-menu {
+            text-align: center;
+            color: white;
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        #game-container {
+            display: none;
+            position: relative;
+        }
+        #maze {
+            border: 2px solid white;
+            background-color: #222;
+        }
+        #character {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            transition: all 0.1s;
+        }
+        #controls {
+            margin-top: 10px;
+            color: white;
+            text-align: center;
+        }
+        #mobile-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto;
+            gap: 10px;
+            margin-top: 20px;
+            max-width: 200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .control-button {
+            font-size: 24px;
+            padding: 15px;
+            background-color: #555;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            user-select: none;
+        }
+        #up-btn {
+            grid-column: 2;
+        }
+        #left-btn {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        #right-btn {
+            grid-column: 3;
+            grid-row: 2;
+        }
+        #down-btn {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Start Menu -->
+    <div id="start-menu">
+        <h1>Maze Game</h1>
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container">
+        <canvas id="maze" width="400" height="400"></canvas>
+        <div id="controls">
+            <p>Use Arrow Keys or WASD to move</p>
+            <!-- Mobile Controls -->
+            <div id="mobile-controls">
+                <button id="up-btn" class="control-button" ontouchstart="moveCharacter(0, -1)" ontouchend="clearMove()">↑</button>
+                <button id="left-btn" class="control-button" ontouchstart="moveCharacter(-1, 0)" ontouchend="clearMove()">←</button>
+                <button id="down-btn" class="control-button" ontouchstart="moveCharacter(0, 1)" ontouchend="clearMove()">↓</button>
+                <button id="right-btn" class="control-button" ontouchstart="moveCharacter(1, 0)" ontouchend="clearMove()">→</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Menu -->
+    <div id="game-over-menu" style="display: none;">
+        <h1>You Died!</h1>
+        <button onclick="restartGame()">Restart</button>
+        <button onclick="backToMenu()">Back to Menu</button>
+    </div>
+
+    <!-- Win Menu -->
+    <div id="win-menu" style="display: none;">
+        <h1>You Win!!!</h1>
+        <button onclick="restartGame()">Play Again</button>
+        <button onclick="backToMenu()">Back to Menu</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('maze');
+        const ctx = canvas.getContext('2d');
+        const cellSize = 20;
+        const rows = canvas.height / cellSize;
+        const cols = canvas.width / cellSize;
+        let maze = [];
+        let character = { x: 0, y: 0 };
+        let gameOver = false;
+        let gameWon = false;
+        let moveInterval = null;
+
+        // Generate a random maze
+        function generateMaze() {
+            maze = [];
+            for (let i = 0; i < rows; i++) {
+                maze[i] = [];
+                for (let j = 0; j < cols; j++) {
+                    // Make sure the player has a path to the flag
+                    if ((i === 0 && j === 1) || (i === 1 && j === 0) || 
+                        (i === rows-2 && j === cols-1) || (i === rows-1 && j === cols-2)) {
+                        maze[i][j] = 0;
+                    } else {
+                        maze[i][j] = Math.random() > 0.7 ? 1 : 0;
+                    }
+                }
+            }
+            // Ensure start and end are clear
+            maze[0][0] = 0;
+            maze[rows-1][cols-1] = 0;
+        }
+
+        // Draw the maze
+        function drawMaze() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw walls
+            ctx.fillStyle = 'black';
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (maze[i][j] === 1) {
+                        ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+            
+            // Draw flag (green block)
+            ctx.fillStyle = 'green';
+            ctx.fillRect((cols - 1) * cellSize, (rows - 1) * cellSize, cellSize, cellSize);
+            
+            // Draw character
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(
+                character.x * cellSize + cellSize/2, 
+                character.y * cellSize + cellSize/2, 
+                cellSize/2, 
+                0, 
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
+
+        // Move the character
+        function moveCharacter(dx, dy) {
+            if (gameOver || gameWon) return;
+            
+            const newX = character.x + dx;
+            const newY = character.y + dy;
+            
+            // Check boundaries and walls
+            if (newX >= 0 && newX < cols && newY >= 0 && newY < rows && maze[newY][newX] === 0) {
+                character.x = newX;
+                character.y = newY;
+                
+                // Check if reached the flag (bottom-right corner)
+                if (character.x === cols - 1 && character.y === rows - 1) {
+                    gameWon = true;
+                    document.getElementById('win-menu').style.display = 'block';
+                }
+            } else {
+                gameOver = true;
+                document.getElementById('game-over-menu').style.display = 'block';
+            }
+            
+            drawMaze();
+        }
+
+        // For mobile continuous movement
+        function startMoving(dx, dy) {
+            if (moveInterval) clearInterval(moveInterval);
+            moveInterval = setInterval(() => moveCharacter(dx, dy), 100);
+        }
+
+        function clearMove() {
+            if (moveInterval) {
+                clearInterval(moveInterval);
+                moveInterval = null;
+            }
+        }
+
+        // Start the game
+        function startGame() {
+            document.getElementById('start-menu').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('game-over-menu').style.display = 'none';
+            document.getElementById('win-menu').style.display = 'none';
+            
+            generateMaze();
+            character = { x: 0, y: 0 };
+            gameOver = false;
+            gameWon = false;
+            
+            drawMaze();
+        }
+
+        // Restart the game
+        function restartGame() {
+            document.getElementById('game-over-menu').style.display = 'none';
+            document.getElementById('win-menu').style.display = 'none';
+            startGame();
+        }
+
+        // Back to menu
+        function backToMenu() {
+            document.getElementById('game-over-menu').style.display = 'none';
+            document.getElementById('win-menu').style.display = 'none';
+            document.getElementById('start-menu').style.display = 'block';
+            document.getElementById('game-container').style.display = 'none';
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                    moveCharacter(0, -1);
+                    break;
+                case 'ArrowDown':
+                case 's':
+                    moveCharacter(0, 1);
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                    moveCharacter(-1, 0);
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                    moveCharacter(1, 0);
+                    break;
+            }
+        });
+
+        // Mobile touch controls
+        document.getElementById('up-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startMoving(0, -1);
+        });
+        document.getElementById('left-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startMoving(-1, 0);
+        });
+        document.getElementById('right-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startMoving(1, 0);
+        });
+        document.getElementById('down-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startMoving(0, 1);
+        });
+
+        document.querySelectorAll('.control-button').forEach(btn => {
+            btn.addEventListener('touchend', clearMove);
+        });
+    </script>
+</body>
+</html>
+            }
+        });
+    </script>
+<a href="https://williamos.netlify.app" target="_self" style="
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background-color: #ff4d4d;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    z-index: 9999;
+">Exit maze game</a>
+

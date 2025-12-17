@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+        }
+        canvas {
+            background: black;
+            display: block;
+            margin: auto;
+        }
+        #controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: gray;
+            border: none;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h3>Snake Game</h3>
+    <canvas id="gameCanvas" width="200" height="200"></canvas>
+    <audio id="pingSound" src="ping.mp3"></audio>
+
+    <!-- Mobile Controls -->
+    <div id="controls">
+        <button class="control-btn" onclick="changeDirection('UP')">⬆️</button>
+    </div>
+    <div id="controls">
+        <button class="control-btn" onclick="changeDirection('LEFT')">⬅️</button>
+        <button class="control-btn" onclick="changeDirection('DOWN')">⬇️</button>
+        <button class="control-btn" onclick="changeDirection('RIGHT')">➡️</button>
+    </div>
+
+    <script>
+        let canvas = document.getElementById("gameCanvas");
+        let ctx = canvas.getContext("2d");
+        let box = 10, snake = [{x: 100, y: 100}], dir = "RIGHT";
+        let food = {x: Math.floor(Math.random() * 20) * 10, y: Math.floor(Math.random() * 20) * 10};
+        let pingSound = document.getElementById("pingSound");
+
+        document.addEventListener("keydown", function (e) {
+            if ((e.key === "ArrowUp" || e.key === "w") && dir !== "DOWN") dir = "UP";
+            else if ((e.key === "ArrowDown" || e.key === "s") && dir !== "UP") dir = "DOWN";
+            else if ((e.key === "ArrowLeft" || e.key === "a") && dir !== "RIGHT") dir = "LEFT";
+            else if ((e.key === "ArrowRight" || e.key === "d") && dir !== "LEFT") dir = "RIGHT";
+        });
+
+        function changeDirection(newDir) {
+            if (newDir === "UP" && dir !== "DOWN") dir = "UP";
+            else if (newDir === "DOWN" && dir !== "UP") dir = "DOWN";
+            else if (newDir === "LEFT" && dir !== "RIGHT") dir = "LEFT";
+            else if (newDir === "RIGHT" && dir !== "LEFT") dir = "RIGHT";
+        }
+
+        function draw() {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "red";
+            ctx.fillRect(food.x, food.y, box, box);
+            ctx.fillStyle = "lime";
+            snake.forEach(part => ctx.fillRect(part.x, part.y, box, box));
+
+            let newHead = { x: snake[0].x, y: snake[0].y };
+
+            // Move the snake
+            if (dir === "UP") newHead.y -= box;
+            else if (dir === "DOWN") newHead.y += box;
+            else if (dir === "LEFT") newHead.x -= box;
+            else if (dir === "RIGHT") newHead.x += box;
+
+            // Wrap around the screen (teleport to the other side)
+            if (newHead.x < 0) newHead.x = canvas.width - box;
+            else if (newHead.x >= canvas.width) newHead.x = 0;
+            if (newHead.y < 0) newHead.y = canvas.height - box;
+            else if (newHead.y >= canvas.height) newHead.y = 0;
+
+            snake.unshift(newHead);
+
+            if (newHead.x === food.x && newHead.y === food.y) {
+                pingSound.play();
+                food = {x: Math.floor(Math.random() * 20) * 10, y: Math.floor(Math.random() * 20) * 10};
+            } else {
+                snake.pop();
+            }
+
+            // Check for win condition (if the snake fills the whole map)
+            if (snake.length >= (canvas.width / box) * (canvas.height / box)) {
+                alert("🎉 You Win! 🎉");
+                location.reload(); // Restart game
+            }
+        }
+
+        setInterval(draw, 100);
+    </script>
+<!-- E
+<!-- Exit Button -->
+<button onclick="window.location.href='https://williamos.netlify.app';" 
+    style="
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        background-color: red;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        z-index: 999;
+    ">
+    Exit Snake Game
+</button>
+</body>
+</html>

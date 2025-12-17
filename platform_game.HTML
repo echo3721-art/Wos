@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Platform Adventure</title>
+    <link rel="stylesheet" href="platform_game.css">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #game-canvas {
+            display: block;
+            background-color: #87CEEB;
+        }
+        #start-screen, #level-screen, #game-over-screen, #win-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            text-align: center;
+        }
+        #level-screen, #game-over-screen, #win-screen {
+            display: none;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            min-width: 150px;
+        }
+        .level-btn {
+            background-color: #3498db;
+        }
+        #mobile-controls {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 10px;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+        .mobile-btn {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            user-select: none;
+            margin: 0 auto;
+        }
+        #up-btn {
+            grid-column: 2;
+            grid-row: 1;
+        }
+        #left-btn {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        #right-btn {
+            grid-column: 3;
+            grid-row: 2;
+        }
+        #down-btn {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        #score-display {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        #level-display {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 18px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .spike {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 30px solid #ff0000;
+        }
+        @keyframes stomp {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .stomp-effect {
+            animation: stomp 0.3s;
+        }
+        .pipe-entrance {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: #228B22;
+            border: 3px solid #006400;
+            border-radius: 5px;
+        }
+        .pipe-exit {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: #228B22;
+            border: 3px solid #006400;
+            border-radius: 5px;
+        }
+        .secret-area {
+            position: absolute;
+            background-color: rgba(0,0,0,0.7);
+            border: 3px dashed gold;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="score-display">Score: 0</div>
+        <div id="level-display">Level: 1</div>
+        
+        <div id="start-screen">
+            <h1>Super Platform Adventure</h1>
+            <p>Jump on monsters to defeat them!</p>
+            <button id="start-btn">Start Game</button>
+            <button id="level-select-btn" class="level-btn">Select Level</button>
+        </div>
+        
+        <div id="level-screen">
+            <h1>Select Level</h1>
+            <button class="level-btn" data-level="1">1 - Grassland Run</button>
+            <button class="level-btn" data-level="2">2 - Ladder Climb</button>
+            <button class="level-btn" data-level="3">3 - Sky High</button>
+            <button class="level-btn" data-level="4">4 - Pipe Maze</button>
+            <button class="level-btn" data-level="5">5 - Endless Practice</button>
+            <button id="back-to-menu-btn">Back to Menu</button>
+        </div>
+        
+        <div id="game-over-screen">
+            <h1>Game Over</h1>
+            <p id="game-over-score">Score: 0</p>
+            <button id="restart-btn">Try Again</button>
+            <button id="menu-btn">Menu</button>
+        </div>
+        
+        <div id="win-screen">
+            <h1>You Win!</h1>
+            <p id="final-score">Score: 0</p>
+            <p id="next-level-msg"></p>
+            <button id="next-level-btn">Next Level</button>
+            <button id="play-again-btn">Play Again</button>
+            <button id="back-to-menu-btn-2">Menu</button>
+        </div>
+        
+        <div id="mobile-controls">
+            <div class="mobile-btn" id="up-btn">↑</div>
+            <div class="mobile-btn" id="left-btn">←</div>
+            <div class="mobile-btn" id="right-btn">→</div>
+            <div class="mobile-btn" id="down-btn">↓</div>
+        </div>
+    </div>
+
+    <script>
+        // Game setup
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Game state
+        let gameRunning = false;
+        let score = 0;
+        let currentLevel = 1;
+        let maxLevel = 5;
+        let lastTime = 0;
+        let stompTimer = 0;
+        let isInPipe = false;
+        let pipeTransitionTimer = 0;
+        let pipeExitPosition = { x: 0, y: 0 };
+        let inSecretArea = false;
+        
+        // Player
+        const player = {
+            x: 50,
+            y: canvas.height - 100,
+            width: 30,
+            height: 50,
+            color: '#FF5733',
+            speed: 5,
+            jumpForce: 12,
+            velocityY: 0,
+            isJumping: false,
+            direction: 0,
+            verticalDirection: 0,
+            isStomping: false
+        };
+        
+        // Game elements
+        let platforms = [];
+        let movingPlatforms = [];
+        let stars = [];
+        let monsters = [];
+        let spikes = [];
+        let ladders = [];
+        let pipes = [];
+        let secretAreas = [];
+        let secretStars = [];
+        let flag = {};
+        
+        // Camera offset
+        let cameraOffset = { x: 0, y: 0 };
+        
+        // Fixed time step for 60 TPS (ticks per second)
+        const FIXED_TIME_STEP = 1/60; // 1/60 seconds per tick
+        let accumulator = 0;
+
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+            
+            // Calculate time since last frame in seconds
+            const deltaTime = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            
+            // Accumulate time
+            accumulator += deltaTime;
+            
+            // Update game state 60 times per second
+            while (accumulator >= FIXED_TIME_STEP) {
+                update(FIXED_TIME_STEP);
+                accumulator -= FIXED_TIME_STEP;
+            }
+            
+            // Always draw at the frame rate
+            draw();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Level designs
+        const levelDesigns = {
+            1: {
+                name: "Grassland Run",
+                platforms: [
+                    { x: 0, y: canvas.height - 50, width: canvas.width, height: 50, color: '#2ECC71' },
+                    { x: 200, y: canvas.height - 150, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 400, y: canvas.height - 200, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 600, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 300, y: canvas.height - 300, width: 100, height: 20, color: '#2ECC71' }
+                ],
+                movingPlatforms: [
+                    { x: 100, y: canvas.height - 200, width: 80, height: 15, color: '#3498DB', speed: 2, direction: 1, minX: 100, maxX: 300 }
+                ],
+                stars: [
+                    { x: 250, y: canvas.height - 180, radius: 10, color: 'gold', collected: false },
+                    { x: 450, y: canvas.height - 230, radius: 10, color: 'gold', collected: false },
+                    { x: 350, y: canvas.height - 330, radius: 10, color: 'gold', collected: false }
+                ],
+                monsters: [
+                    { x: 500, y: canvas.height - 220, width: 30, height: 30, color: '#E74C3C', speed: 1.5, direction: 1, minX: 450, maxX: 650, alive: true }
+                ],
+                spikes: [
+                    { x: 700, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' }
+                ],
+                ladders: [],
+                pipes: [],
+                secretAreas: [],
+                secretStars: [],
+                flag: { x: 800, y: canvas.height - 450, width: 30, height: 50, color: 'green' }
+            },
+            2: {
+                name: "Ladder Climb",
+                platforms: [
+                    { x: 0, y: canvas.height - 50, width: canvas.width, height: 50, color: '#2ECC71' },
+                    { x: 150, y: canvas.height - 150, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 300, y: canvas.height - 250, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 450, y: canvas.height - 350, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 600, y: canvas.height - 250, width: 80, height: 20, color: '#2ECC71' }
+                ],
+                movingPlatforms: [
+                    { x: 200, y: canvas.height - 200, width: 70, height: 15, color: '#3498DB', speed: 2.5, direction: 1, minX: 200, maxX: 400 },
+                    { x: 500, y: canvas.height - 300, width: 70, height: 15, color: '#3498DB', speed: 2, direction: -1, minX: 400, maxX: 600 }
+                ],
+                stars: [
+                    { x: 180, y: canvas.height - 180, radius: 10, color: 'gold', collected: false },
+                    { x: 330, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 480, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 630, y: canvas.height - 280, radius: 10, color: 'gold', collected: false }
+                ],
+                monsters: [
+                    { x: 250, y: canvas.height - 170, width: 30, height: 30, color: '#E74C3C', speed: 2, direction: 1, minX: 200, maxX: 350, alive: true },
+                    { x: 550, y: canvas.height - 270, width: 30, height: 30, color: '#E74C3C', speed: 2, direction: -1, minX: 450, maxX: 600, alive: true }
+                ],
+                spikes: [
+                    { x: 400, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 700, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' }
+                ],
+                ladders: [
+                    { x: 350, y: canvas.height - 350, width: 20, height: 100, color: '#8B4513' }
+                ],
+                pipes: [],
+                secretAreas: [],
+                secretStars: [],
+                flag: { x: 750, y: canvas.height - 450, width: 30, height: 50, color: 'green' }
+            },
+            3: {
+                name: "Sky High",
+                platforms: [
+                    { x: 0, y: canvas.height - 50, width: 150, height: 50, color: '#2ECC71' },
+                    { x: 200, y: canvas.height - 150, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 350, y: canvas.height - 250, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 200, y: canvas.height - 350, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 500, y: canvas.height - 450, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 650, y: canvas.height - 350, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 500, y: canvas.height - 250, width: 80, height: 20, color: '#2ECC71' },
+                    { x: 650, y: canvas.height - 150, width: 150, height: 20, color: '#2ECC71' }
+                ],
+                movingPlatforms: [
+                    { x: 300, y: canvas.height - 200, width: 60, height: 15, color: '#3498DB', speed: 3, direction: 1, minX: 250, maxX: 450 },
+                    { x: 400, y: canvas.height - 300, width: 60, height: 15, color: '#3498DB', speed: 2.5, direction: -1, minX: 350, maxX: 550 }
+                ],
+                stars: [
+                    { x: 230, y: canvas.height - 180, radius: 10, color: 'gold', collected: false },
+                    { x: 380, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 230, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 530, y: canvas.height - 480, radius: 10, color: 'gold', collected: false },
+                    { x: 680, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 530, y: canvas.height - 280, radius: 10, color: 'gold', collected: false }
+                ],
+                monsters: [
+                    { x: 270, y: canvas.height - 170, width: 30, height: 30, color: '#E74C3C', speed: 2.5, direction: 1, minX: 220, maxX: 370, alive: true },
+                    { x: 420, y: canvas.height - 270, width: 30, height: 30, color: '#E74C3C', speed: 2.5, direction: -1, minX: 370, maxX: 520, alive: true },
+                    { x: 570, y: canvas.height - 370, width: 30, height: 30, color: '#E74C3C', speed: 2, direction: 1, minX: 520, maxX: 670, alive: true }
+                ],
+                spikes: [
+                    { x: 150, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 300, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 450, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 600, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' }
+                ],
+                ladders: [
+                    { x: 250, y: canvas.height - 350, width: 20, height: 200, color: '#8B4513' },
+                    { x: 550, y: canvas.height - 450, width: 20, height: 200, color: '#8B4513' }
+                ],
+                pipes: [],
+                secretAreas: [],
+                secretStars: [],
+                flag: { x: 700, y: canvas.height - 170, width: 30, height: 50, color: 'green' }
+            },
+            4: {
+                name: "Pipe Maze",
+                platforms: [
+                    { x: 0, y: canvas.height - 50, width: 200, height: 50, color: '#2ECC71' },
+                    { x: 300, y: canvas.height - 150, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 500, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 700, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 900, y: canvas.height - 450, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1100, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1300, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1500, y: canvas.height - 150, width: 200, height: 20, color: '#2ECC71' },
+                    { x: 1700, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' }
+                ],
+                movingPlatforms: [
+                    { x: 400, y: canvas.height - 200, width: 70, height: 15, color: '#3498DB', speed: 3, direction: 1, minX: 350, maxX: 600 },
+                    { x: 800, y: canvas.height - 300, width: 70, height: 15, color: '#3498DB', speed: 3, direction: -1, minX: 700, maxX: 950 }
+                ],
+                stars: [
+                    { x: 350, y: canvas.height - 180, radius: 10, color: 'gold', collected: false },
+                    { x: 550, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 750, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 950, y: canvas.height - 480, radius: 10, color: 'gold', collected: false },
+                    { x: 1150, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 1350, y: canvas.height - 280, radius: 10, color: 'gold', collected: false }
+                ],
+                monsters: [
+                    { x: 450, y: canvas.height - 170, width: 30, height: 30, color: '#E74C3C', speed: 2.5, direction: 1, minX: 400, maxX: 550, alive: true },
+                    { x: 850, y: canvas.height - 270, width: 30, height: 30, color: '#E74C3C', speed: 2.5, direction: -1, minX: 800, maxX: 950, alive: true },
+                    { x: 1250, y: canvas.height - 170, width: 30, height: 30, color: '#E74C3C', speed: 2, direction: 1, minX: 1200, maxX: 1350, alive: true }
+                ],
+                spikes: [
+                    { x: 250, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 550, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 850, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1150, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1450, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' }
+                ],
+                ladders: [
+                    { x: 600, y: canvas.height - 450, width: 20, height: 200, color: '#8B4513' },
+                    { x: 1000, y: canvas.height - 450, width: 20, height: 100, color: '#8B4513' }
+                ],
+                pipes: [
+                    {
+                        entrance: { x: 200, y: canvas.height - 90, width: 40, height: 40 },
+                        exit: { x: 1200, y: canvas.height - 390, width: 40, height: 40 },
+                        direction: 'down',
+                        visible: true
+                    },
+                    {
+                        entrance: { x: 1400, y: canvas.height - 190, width: 40, height: 40 },
+                        exit: { x: 100, y: canvas.height - 490, width: 40, height: 40 },
+                        direction: 'up',
+                        visible: true
+                    },
+                    {
+                        entrance: { x: 1600, y: canvas.height - 290, width: 40, height: 40 },
+                        exit: { x: 1800, y: canvas.height - 590, width: 40, height: 40 },
+                        direction: 'down',
+                        visible: false // Secret pipe!
+                    }
+                ],
+                secretAreas: [
+                    { x: 1750, y: canvas.height - 650, width: 200, height: 200 }
+                ],
+                secretStars: [
+                    { x: 1800, y: canvas.height - 700, radius: 15, color: 'gold', collected: false },
+                    { x: 1850, y: canvas.height - 650, radius: 15, color: 'gold', collected: false },
+                    { x: 1900, y: canvas.height - 700, radius: 15, color: 'gold', collected: false }
+                ],
+                flag: { x: 1600, y: canvas.height - 200, width: 30, height: 50, color: 'green' }
+            },
+            5: {
+                name: "Endless Practice",
+                platforms: [
+                    { x: 0, y: canvas.height - 50, width: 200, height: 50, color: '#2ECC71' },
+                    { x: 250, y: canvas.height - 150, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 400, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 550, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 700, y: canvas.height - 450, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 850, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1000, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1150, y: canvas.height - 150, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1300, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1450, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1600, y: canvas.height - 450, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1750, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 1900, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 2050, y: canvas.height - 150, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 2200, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 2350, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 2500, y: canvas.height - 450, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 2650, y: canvas.height - 350, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 2800, y: canvas.height - 250, width: 100, height: 20, color: '#2ECC71' },
+                    { x: 2950, y: canvas.height - 150, width: 200, height: 20, color: '#2ECC71' }
+                ],
+                movingPlatforms: [
+                    { x: 500, y: canvas.height - 200, width: 80, height: 15, color: '#3498DB', speed: 3, direction: 1, minX: 450, maxX: 700 },
+                    { x: 1200, y: canvas.height - 300, width: 80, height: 15, color: '#3498DB', speed: 3, direction: -1, minX: 1100, maxX: 1400 },
+                    { x: 2000, y: canvas.height - 400, width: 80, height: 15, color: '#3498DB', speed: 3, direction: 1, minX: 1900, maxX: 2200 }
+                ],
+                stars: [
+                    { x: 300, y: canvas.height - 180, radius: 10, color: 'gold', collected: false },
+                    { x: 450, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 600, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 750, y: canvas.height - 480, radius: 10, color: 'gold', collected: false },
+                    { x: 900, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 1050, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 1200, y: canvas.height - 180, radius: 10, color: 'gold', collected: false },
+                    { x: 1350, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 1500, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 1650, y: canvas.height - 480, radius: 10, color: 'gold', collected: false },
+                    { x: 1800, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 1950, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 2100, y: canvas.height - 180, radius: 10, color: 'gold', collected: false },
+                    { x: 2250, y: canvas.height - 280, radius: 10, color: 'gold', collected: false },
+                    { x: 2400, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 2550, y: canvas.height - 480, radius: 10, color: 'gold', collected: false },
+                    { x: 2700, y: canvas.height - 380, radius: 10, color: 'gold', collected: false },
+                    { x: 2850, y: canvas.height - 280, radius: 10, color: 'gold', collected: false }
+                ],
+                monsters: [], // No monsters in practice mode
+                spikes: [
+                    { x: 200, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 300, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 400, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 500, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 600, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 700, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 800, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 900, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1000, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1100, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1200, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1300, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1400, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1500, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1600, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1700, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1800, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 1900, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2000, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2100, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2200, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2300, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2400, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2500, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2600, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2700, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2800, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 2900, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' },
+                    { x: 3000, y: canvas.height - 50, width: 30, height: 20, color: '#ff0000' }
+                ],
+                ladders: [
+                    { x: 350, y: canvas.height - 450, width: 20, height: 300, color: '#8B4513' },
+                    { x: 950, y: canvas.height - 450, width: 20, height: 300, color: '#8B4513' },
+                    { x: 1550, y: canvas.height - 450, width: 20, height: 300, color: '#8B4513' },
+                    { x: 2150, y: canvas.height - 450, width: 20, height: 300, color: '#8B4513' },
+                    { x: 2750, y: canvas.height - 450, width: 20, height: 300, color: '#8B4513' }
+                ],
+                pipes: [
+                    {
+                        entrance: { x: 150, y: canvas.height - 90, width: 40, height: 40 },
+                        exit: { x: 1250, y: canvas.height - 390, width: 40, height: 40 },
+                        direction: 'down',
+                        visible: true
+                    },
+                    {
+                        entrance: { x: 1350, y: canvas.height - 190, width: 40, height: 40 },
+                        exit: { x: 2350, y: canvas.height - 490, width: 40, height: 40 },
+                        direction: 'up',
+                        visible: true
+                    }
+                ],
+                secretAreas: [],
+                secretStars: [],
+                flag: { x: 3000, y: canvas.height - 170, width: 30, height: 50, color: 'green' }
+            }
+        };
+
+        // Event listeners
+        document.getElementById('start-btn').addEventListener('click', () => startGame(1));
+        document.getElementById('level-select-btn').addEventListener('click', showLevelSelect);
+        document.getElementById('back-to-menu-btn').addEventListener('click', showMenu);
+        document.getElementById('back-to-menu-btn-2').addEventListener('click', showMenu);
+        document.getElementById('restart-btn').addEventListener('click', () => startGame(currentLevel));
+        document.getElementById('play-again-btn').addEventListener('click', () => startGame(currentLevel));
+        document.getElementById('next-level-btn').addEventListener('click', nextLevel);
+        
+        // Level selection buttons
+        document.querySelectorAll('.level-btn[data-level]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const level = parseInt(e.target.getAttribute('data-level'));
+                startGame(level);
+            });
+        });
+
+        // Keyboard controls
+        const keys = {
+            ArrowLeft: false,
+            ArrowRight: false,
+            ArrowUp: false,
+            ArrowDown: false,
+            a: false,
+            d: false,
+            w: false,
+            s: false,
+            ' ': false
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            if (keys.hasOwnProperty(e.key)) {
+                keys[e.key] = true;
+                updatePlayerDirection();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (!gameRunning) return;
+            if (keys.hasOwnProperty(e.key)) {
+                keys[e.key] = false;
+                updatePlayerDirection();
+            }
+        });
+
+        function updatePlayerDirection() {
+            // Horizontal movement
+            if (keys.ArrowLeft || keys.a) {
+                player.direction = -1;
+            } else if (keys.ArrowRight || keys.d) {
+                player.direction = 1;
+            } else {
+                player.direction = 0;
+            }
+
+            // Vertical movement (ladders)
+            if (isOnLadder()) {
+                if (keys.ArrowUp || keys.w || keys[' ']) {
+                    player.verticalDirection = -1;
+                } else if (keys.ArrowDown || keys.s) {
+                    player.verticalDirection = 1;
+                } else {
+                    player.verticalDirection = 0;
+                }
+            } else {
+                player.verticalDirection = 0;
+                if ((keys.ArrowUp || keys.w || keys[' ']) && !player.isJumping) {
+                    jump();
+                }
+            }
+        }
+        
+        // Mobile controls
+        document.getElementById('left-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameRunning) player.direction = -1;
+        });
+        document.getElementById('left-btn').addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (player.direction === -1) player.direction = 0;
+        });
+        
+        document.getElementById('right-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameRunning) player.direction = 1;
+        });
+        document.getElementById('right-btn').addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (player.direction === 1) player.direction = 0;
+        });
+        
+        document.getElementById('up-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameRunning) {
+                if (isOnLadder()) {
+                    player.verticalDirection = -1;
+                } else {
+                    jump();
+                }
+            }
+        });
+        document.getElementById('up-btn').addEventListener('touchend', (e) => {
+            e.preventDefault();
+            player.verticalDirection = 0;
+        });
+        
+        document.getElementById('down-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameRunning && isOnLadder()) {
+                player.verticalDirection = 1;
+            }
+        });
+        document.getElementById('down-btn').addEventListener('touchend', (e) => {
+            e.preventDefault();
+            player.verticalDirection = 0;
+        });
+
+        // Game functions
+        function loadLevel(level) {
+            const design = levelDesigns[level];
+            platforms = JSON.parse(JSON.stringify(design.platforms));
+            movingPlatforms = JSON.parse(JSON.stringify(design.movingPlatforms));
+            stars = JSON.parse(JSON.stringify(design.stars));
+            monsters = JSON.parse(JSON.stringify(design.monsters));
+            spikes = JSON.parse(JSON.stringify(design.spikes));
+            ladders = JSON.parse(JSON.stringify(design.ladders));
+            pipes = JSON.parse(JSON.stringify(design.pipes || []));
+            secretAreas = JSON.parse(JSON.stringify(design.secretAreas || []));
+            secretStars = JSON.parse(JSON.stringify(design.secretStars || []));
+            flag = JSON.parse(JSON.stringify(design.flag));
+            
+            // Reset player position
+            player.x = 50;
+            player.y = canvas.height - 100;
+            player.velocityY = 0;
+            player.isJumping = false;
+            player.direction = 0;
+            player.verticalDirection = 0;
+            player.isStomping = false;
+            isInPipe = false;
+            inSecretArea = false;
+            pipeTransitionTimer = 0;
+            
+            // Reset camera
+            cameraOffset = { x: 0, y: 0 };
+            
+            // Update display
+            document.getElementById('level-display').textContent = `Level: ${level} - ${design.name}`;
+        }
+        
+        function startGame(level) {
+            currentLevel = level;
+            loadLevel(level);
+            
+            // Reset game state
+            gameRunning = true;
+            score = 0;
+            document.getElementById('score-display').textContent = 'Score: 0';
+            
+            // Hide menus
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('level-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('win-screen').style.display = 'none';
+            
+            // Start game loop
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function nextLevel() {
+            if (currentLevel < maxLevel) {
+                startGame(currentLevel + 1);
+            } else {
+                document.getElementById('next-level-msg').textContent = "You've completed all levels!";
+                document.getElementById('next-level-btn').style.display = 'none';
+            }
+        }
+        
+        function showLevelSelect() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('level-screen').style.display = 'flex';
+        }
+        
+        function showMenu() {
+            gameRunning = false;
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('level-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('win-screen').style.display = 'none';
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('game-over-score').textContent = `Score: ${score}`;
+            document.getElementById('game-over-screen').style.display = 'flex';
+        }
+        
+        function winGame() {
+            gameRunning = false;
+            document.getElementById('final-score').textContent = `Score: ${score}`;
+            document.getElementById('win-screen').style.display = 'flex';
+            
+            if (currentLevel < maxLevel) {
+                document.getElementById('next-level-msg').textContent = `Ready for level ${currentLevel + 1}?`;
+                document.getElementById('next-level-btn').style.display = 'block';
+            } else {
+                document.getElementById('next-level-msg').textContent = "You've completed all levels!";
+                document.getElementById('next-level-btn').style.display = 'none';
+            }
+        }
+        
+        function jump() {
+            if (!player.isJumping) {
+                player.velocityY = -player.jumpForce;
+                player.isJumping = true;
+            }
+        }
+        
+        function isOnLadder() {
+            for (const ladder of ladders) {
+                if (
+                    player.x + player.width > ladder.x &&
+                    player.x < ladder.x + ladder.width &&
+                    player.y + player.height >= ladder.y &&
+                    player.y <= ladder.y + ladder.height
+                ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function checkCollision(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y
+            );
+        }
+        
+        function checkPlatformCollision() {
+            let onPlatform = false;
+            
+            // Check static platforms
+            for (const platform of platforms) {
+                if (
+                    player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+                    player.y + player.height <= platform.y + 5 &&
+                    player.y + player.height + player.velocityY >= platform.y
+                ) {
+                    player.y = platform.y - player.height;
+                    player.velocityY = 0;
+                    player.isJumping = false;
+                    onPlatform = true;
+                }
+            }
+            
+            // Check moving platforms
+            for (const platform of movingPlatforms) {
+                if (
+                    player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+                    player.y + player.height <= platform.y + 5 &&
+                    player.y + player.height + player.velocityY >= platform.y
+                ) {
+                    player.y = platform.y - player.height;
+                    player.velocityY = 0;
+                    player.isJumping = false;
+                    onPlatform = true;
+                    // Move with the platform
+                    player.x += platform.speed * platform.direction;
+                }
+            }
+            
+            // If not on any platform and not jumping, start falling
+            if (!onPlatform && player.velocityY === 0 && !isOnLadder()) {
+                player.isJumping = true;
+            }
+        }
+        
+        function checkStarCollection() {
+            for (const star of stars) {
+                if (!star.collected) {
+                    const distance = Math.sqrt(
+                        Math.pow(player.x + player.width/2 - star.x, 2) + 
+                        Math.pow(player.y + player.height/2 - star.y, 2)
+                    );
+                    
+                    if (distance < player.width/2 + star.radius) {
+                        star.collected = true;
+                        score += 10;
+                        document.getElementById('score-display').textContent = `Score: ${score}`;
+                    }
+                }
+            }
+
+            // Check secret stars if in secret area
+            if (inSecretArea) {
+                for (const star of secretStars) {
+                    if (!star.collected) {
+                        const distance = Math.sqrt(
+                            Math.pow(player.x + player.width/2 - star.x, 2) + 
+                            Math.pow(player.y + player.height/2 - star.y, 2)
+                        );
+                        
+                        if (distance < player.width/2 + star.radius) {
+                            star.collected = true;
+                            score += 30; // Bonus points for secret stars
+                            document.getElementById('score-display').textContent = `Score: ${score}`;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function checkMonsterCollision() {
+            for (let i = monsters.length - 1; i >= 0; i--) {
+                const monster = monsters[i];
+                if (!monster.alive) continue;
+                
+                // Check if player is falling onto monster's head
+                if (
+                    player.velocityY > 0 && // Player is falling
+                    player.x + player.width > monster.x &&
+                    player.x < monster.x + monster.width &&
+                    player.y + player.height >= monster.y &&
+                    player.y + player.height < monster.y + monster.height/2
+                ) {
+                    // Stomp the monster!
+                    monster.alive = false;
+                    player.velocityY = -player.jumpForce * 0.7; // Bounce a little
+                    player.isStomping = true;
+                    stompTimer = 0.3;
+                    score += 20;
+                    document.getElementById('score-display').textContent = `Score: ${score}`;
+                    
+                    // Remove monster after a delay
+                    setTimeout(() => {
+                        const index = monsters.indexOf(monster);
+                        if (index > -1) {
+                            monsters.splice(index, 1);
+                        }
+                    }, 200);
+                } 
+                // Check if player hits monster from side/bottom
+                else if (checkCollision(player, monster)) {
+                    gameOver();
+                    return;
+                }
+            }
+        }
+        
+        function checkSpikeCollision() {
+            for (const spike of spikes) {
+                // Create a spike hitbox that's just the top part
+                const spikeHitbox = {
+                    x: spike.x,
+                    y: spike.y,
+                    width: spike.width,
+                    height: 5 // Only the very top is deadly
+                };
+                
+                if (checkCollision(player, spikeHitbox)) {
+                    gameOver();
+                    return;
+                }
+            }
+        }
+        
+        function checkFlagReached() {
+            if (checkCollision(player, flag)) {
+                winGame();
+            }
+        }
+        
+        function checkPipeCollision() {
+            if (isInPipe) return;
+
+            for (const pipe of pipes) {
+                if ((pipe.visible || inSecretArea) && checkCollision(player, pipe.entrance)) {
+                    // Check if player is pressing the correct direction
+                    if ((pipe.direction === 'down' && (keys.ArrowDown || keys.s || player.verticalDirection === 1)) ||
+                        (pipe.direction === 'up' && (keys.ArrowUp || keys.w || player.verticalDirection === -1))) {
+                        
+                        // Enter the pipe
+                        isInPipe = true;
+                        pipeTransitionTimer = 1; // 1 second transition
+                        pipeExitPosition = pipe.exit;
+                        return;
+                    }
+                }
+            }
+        }
+
+        function checkSecretArea() {
+            if (inSecretArea) return;
+
+            for (const area of secretAreas) {
+                if (checkCollision(player, area)) {
+                    inSecretArea = true;
+                    // Make secret pipe visible when in secret area
+                    for (const pipe of pipes) {
+                        if (!pipe.visible) {
+                            pipe.visible = true;
+                            break;
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+        
+        function updateMovingPlatforms() {
+            for (const platform of movingPlatforms) {
+                platform.x += platform.speed * platform.direction;
+                
+                if (platform.x <= platform.minX || platform.x + platform.width >= platform.maxX) {
+                    platform.direction *= -1;
+                }
+            }
+        }
+        
+        function updateMonsters() {
+            for (const monster of monsters) {
+                if (!monster.alive) continue;
+                
+                monster.x += monster.speed * monster.direction;
+                
+                if (monster.x <= monster.minX || monster.x + monster.width >= monster.maxX) {
+                    monster.direction *= -1;
+                }
+            }
+        }
+        
+        function updateCamera() {
+            // Center camera on player (with some lead space)
+            cameraOffset.x = player.x - canvas.width/3;
+            
+            // Keep camera within world bounds
+            cameraOffset.x = Math.max(0, cameraOffset.x);
+            cameraOffset.x = Math.min(canvas.width * 3 - canvas.width, cameraOffset.x);
+        }
+        
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw sky background
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Save context for camera translation
+            ctx.save();
+            ctx.translate(-cameraOffset.x, -cameraOffset.y);
+            
+            // Draw platforms
+            for (const platform of platforms) {
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            }
+            
+            // Draw moving platforms
+            for (const platform of movingPlatforms) {
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            }
+            
+            // Draw ladders
+            for (const ladder of ladders) {
+                ctx.fillStyle = ladder.color;
+                ctx.fillRect(ladder.x, ladder.y, ladder.width, ladder.height);
+                
+                // Draw ladder rungs
+                ctx.fillStyle = '#A0522D';
+                for (let y = ladder.y; y < ladder.y + ladder.height; y += 20) {
+                    ctx.fillRect(ladder.x, y, ladder.width, 5);
+                }
+            }
+            
+            // Draw pipes (only visible ones)
+            for (const pipe of pipes) {
+                if (pipe.visible || inSecretArea) {
+                    // Draw pipe entrance
+                    ctx.fillStyle = pipe.visible ? '#228B22' : '#555';
+                    ctx.fillRect(pipe.entrance.x, pipe.entrance.y, pipe.entrance.width, pipe.entrance.height);
+                    ctx.strokeStyle = pipe.visible ? '#006400' : '#333';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(pipe.entrance.x, pipe.entrance.y, pipe.entrance.width, pipe.entrance.height);
+                    
+                    // Draw pipe exit
+                    ctx.fillStyle = '#228B22';
+                    ctx.fillRect(pipe.exit.x, pipe.exit.y, pipe.exit.width, pipe.exit.height);
+                    ctx.strokeStyle = '#006400';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(pipe.exit.x, pipe.exit.y, pipe.exit.width, pipe.exit.height);
+                    
+                    // Draw pipe direction indicator
+                    ctx.fillStyle = 'white';
+                    if (pipe.direction === 'down') {
+                        // Down arrow
+                        ctx.beginPath();
+                        ctx.moveTo(pipe.entrance.x + 15, pipe.entrance.y + 15);
+                        ctx.lineTo(pipe.entrance.x + 25, pipe.entrance.y + 25);
+                        ctx.lineTo(pipe.entrance.x + 35, pipe.entrance.y + 15);
+                        ctx.fill();
+                    } else {
+                        // Up arrow
+                        ctx.beginPath();
+                        ctx.moveTo(pipe.entrance.x + 15, pipe.entrance.y + 25);
+                        ctx.lineTo(pipe.entrance.x + 25, pipe.entrance.y + 15);
+                        ctx.lineTo(pipe.entrance.x + 35, pipe.entrance.y + 25);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // Draw secret area if player is in it
+            if (inSecretArea) {
+                for (const area of secretAreas) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    ctx.strokeStyle = 'gold';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([5, 5]);
+                    ctx.fillRect(area.x, area.y, area.width, area.height);
+                    ctx.strokeRect(area.x, area.y, area.width, area.height);
+                    ctx.setLineDash([]);
+
+                    // Draw secret stars
+                    for (const star of secretStars) {
+                        if (!star.collected) {
+                            ctx.fillStyle = star.color;
+                            ctx.beginPath();
+                            ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // Add star points
+                            ctx.fillStyle = 'yellow';
+                            ctx.beginPath();
+                            for (let i = 0; i < 5; i++) {
+                                const angle = (i * 2 * Math.PI / 5) - Math.PI/2;
+                                const innerAngle = angle + Math.PI / 5;
+                                ctx.lineTo(
+                                    star.x + Math.cos(angle) * star.radius,
+                                    star.y + Math.sin(angle) * star.radius
+                                );
+                                ctx.lineTo(
+                                    star.x + Math.cos(innerAngle) * (star.radius/2),
+                                    star.y + Math.sin(innerAngle) * (star.radius/2)
+                                );
+                            }
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                    }
+                }
+            }
+            
+            // Draw stars
+            for (const star of stars) {
+                if (!star.collected) {
+                    ctx.fillStyle = star.color;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Add star points
+                    ctx.fillStyle = 'yellow';
+                    ctx.beginPath();
+                    for (let i = 0; i < 5; i++) {
+                        const angle = (i * 2 * Math.PI / 5) - Math.PI/2;
+                        const innerAngle = angle + Math.PI / 5;
+                        ctx.lineTo(
+                            star.x + Math.cos(angle) * star.radius,
+                            star.y + Math.sin(angle) * star.radius
+                        );
+                        ctx.lineTo(
+                            star.x + Math.cos(innerAngle) * (star.radius/2),
+                            star.y + Math.sin(innerAngle) * (star.radius/2)
+                        );
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+            
+            // Draw monsters
+            for (const monster of monsters) {
+                if (!monster.alive) continue;
+                
+                ctx.fillStyle = monster.color;
+                ctx.fillRect(monster.x, monster.y, monster.width, monster.height);
+                
+                // Draw monster eyes
+                ctx.fillStyle = 'white';
+                const eyeOffset = monster.direction === 1 ? 5 : -5;
+                ctx.beginPath();
+                ctx.arc(
+                    monster.x + monster.width/2 + eyeOffset, 
+                    monster.y + 10, 
+                    3, 
+                    0, 
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+            
+            // Draw spikes
+            for (const spike of spikes) {
+                ctx.fillStyle = spike.color;
+                for (let i = 0; i < spike.width; i += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(spike.x + i, spike.y + spike.height);
+                    ctx.lineTo(spike.x + i + 10, spike.y);
+                    ctx.lineTo(spike.x + i + 20, spike.y + spike.height);
+                    ctx.fill();
+                }
+            }
+            
+            // Draw flag
+            ctx.fillStyle = flag.color;
+            ctx.fillRect(flag.x, flag.y, flag.width, flag.height);
+            
+            // Draw flag pole
+            ctx.fillStyle = 'gray';
+            ctx.fillRect(flag.x - 5, flag.y, 5, flag.height);
+            
+            // Draw player with stomp effect if needed
+            ctx.save();
+            if (player.isStomping) {
+                ctx.translate(player.x + player.width/2, player.y + player.height/2);
+                ctx.scale(1, 0.8); // Squash effect
+                ctx.translate(-(player.x + player.width/2), -(player.y + player.height/2));
+            }
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Draw player eyes (to show direction)
+            ctx.fillStyle = 'white';
+            const eyeX = player.direction === 1 ? player.x + player.width - 10 : player.x + 10;
+            ctx.fillRect(eyeX, player.y + 15, 5, 5);
+            ctx.restore();
+            
+            // Restore context
+            ctx.restore();
+        }
+        
+        function update(deltaTime) {
+            if (isInPipe) {
+                pipeTransitionTimer -= deltaTime;
+                if (pipeTransitionTimer <= 0) {
+                    // Exit the pipe
+                    player.x = pipeExitPosition.x;
+                    player.y = pipeExitPosition.y - player.height;
+                    isInPipe = false;
+                    player.velocityY = 0;
+                }
+                return; // Don't process other movements while in pipe
+            }
+
+            // Move player horizontally
+            player.x += player.speed * player.direction;
+            
+            // Move player vertically if on ladder
+            if (isOnLadder() && player.verticalDirection !== 0) {
+                player.y += player.verticalDirection * player.speed;
+                player.velocityY = 0;
+                player.isJumping = false;
+            } else {
+                // Apply gravity if not on ladder
+                player.velocityY += 0.5;
+                player.y += player.velocityY;
+            }
+            
+            // Update stomp effect timer
+            if (player.isStomping) {
+                stompTimer -= deltaTime;
+                if (stompTimer <= 0) {
+                    player.isStomping = false;
+                }
+            }
+            
+            // Check if player fell off the screen
+            if (player.y > canvas.height) {
+                gameOver();
+            }
+            
+            // Check collisions
+            checkPlatformCollision();
+            checkStarCollection();
+            checkMonsterCollision();
+            checkSpikeCollision();
+            checkFlagReached();
+            checkPipeCollision();
+            checkSecretArea();
+            
+            // Update game elements
+            updateMovingPlatforms();
+            updateMonsters();
+            updateCamera();
+        }
+        
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+            
+            // Calculate time since last frame in seconds
+            const deltaTime = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            
+            // Accumulate time
+            accumulator += deltaTime;
+            
+            // Update game state 60 times per second
+            while (accumulator >= FIXED_TIME_STEP) {
+                update(FIXED_TIME_STEP);
+                accumulator -= FIXED_TIME_STEP;
+            }
+            
+            // Always draw at the frame rate
+            draw();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // Initialize game
+        showMenu();
+    </script>
+    <a href="https://williamos.netlify.app" target="_self" style="
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        background-color: #ff4d4d;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: bold;
+        z-index: 9999;
+    ">Exit platform game</a>
+    <audio id="bgMusic" src="pixel.mp3" loop></audio>
+
+    <script>
+        document.addEventListener("click", () => {
+            const bgMusic = document.getElementById("bgMusic");
+            if (bgMusic.paused) {
+                bgMusic.volume = 0.5; // Adjust volume if needed
+                bgMusic.play();
+            }
+        });
+    </script>
+</body>
+</html>

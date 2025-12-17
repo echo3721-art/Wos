@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Restaurant Tycoon</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: linear-gradient(135deg, #2c1810 0%, #8b4513 50%, #daa520 100%);
+            font-family: 'Georgia', serif;
+            color: #ffffff;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #daa520;
+            min-width: 200px;
+        }
+        #orderPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            background: rgba(139, 69, 19, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid #daa520;
+            max-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #cookingPanel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid #ff6347;
+            min-width: 250px;
+        }
+        #upgradePanel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 100;
+            background: rgba(0, 100, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid #32cd32;
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .order-item {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #daa520;
+        }
+        .order-timer {
+            background: #ff4444;
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 5px;
+            transition: width 0.1s;
+        }
+        .button {
+            background: #daa520;
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        .button:hover {
+            background: #ffdc00;
+            transform: scale(1.05);
+        }
+        .button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .cooking-item {
+            background: rgba(255, 100, 100, 0.3);
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #ff6347;
+        }
+        .cooking-progress {
+            background: #32cd32;
+            height: 6px;
+            border-radius: 3px;
+            margin-top: 5px;
+            transition: width 0.1s;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: #daa520;
+            border-radius: 50%;
+            z-index: 50;
+            pointer-events: none;
+            box-shadow: 0 0 10px #daa520;
+        }
+        .notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #daa520;
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid #daa520;
+            z-index: 150;
+            font-size: 18px;
+            text-align: center;
+            display: none;
+        }
+        /* New draggable food + icons */
+        .food-item {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 40px;
+            cursor: grab;
+            transition: transform 0.2s;
+            z-index: 120;
+        }
+        .food-item:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+        .food-icon {
+            position: absolute;
+            top: -30px;
+            font-size: 24px;
+            text-shadow: 0 0 8px #000;
+        }
+    </style>
+</head>
+<body>
+    <audio id="backgroundMusic" autoplay loop muted>
+        <source src="chill.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="gameContainer">
+        <div id="ui">
+            <div><strong>💰 Money: $<span id="money">50</span></strong></div>
+            <div>⭐ Level: <span id="level">1</span></div>
+            <div>🏆 Score: <span id="score">0</span></div>
+            <div>👥 Customers Served: <span id="served">0</span></div>
+            <button class="button" onclick="saveGame()">💾 Save Game</button>
+            <button class="button" onclick="loadGame()">📁 Load Game</button>
+            <button class="button" onclick="playMusic()">🎵 Play Music</button>
+        </div>
+
+        <div id="orderPanel">
+            <h3>📋 Customer Orders</h3>
+            <div id="orders"></div>
+        </div>
+
+        <div id="cookingPanel">
+            <h3>🍳 Kitchen</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                <button class="button" onclick="startCooking('burger')">🍔 Burger ($8)</button>
+                <button class="button" onclick="startCooking('pizza')">🍕 Pizza ($12)</button>
+                <button class="button" onclick="startCooking('pasta')">🍝 Pasta ($10)</button>
+                <button class="button" onclick="startCooking('salad')">🥗 Salad ($6)</button>
+            </div>
+            <div id="cooking"></div>
+        </div>
+
+        <div id="upgradePanel">
+            <h3>🏪 Upgrades</h3>
+            <button class="button" onclick="buyUpgrade('speed')">⚡ Faster Cooking ($100)</button>
+            <div>Speed Level: <span id="speedLevel">1</span></div>
+            <button class="button" onclick="buyUpgrade('capacity')">📦 More Kitchen Space ($150)</button>
+            <div>Capacity: <span id="capacityLevel">2</span></div>
+            <button class="button" onclick="buyUpgrade('price')">💎 Higher Prices ($200)</button>
+            <div>Price Multiplier: <span id="priceLevel">1.0</span>x</div>
+        </div>
+
+        <div id="crosshair"></div>
+        <div id="notification" class="notification"></div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Background music control
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        backgroundMusic.volume = 1.0; 
+        function playMusic() {
+            backgroundMusic.muted = false;
+            backgroundMusic.play();
+        }
+
+        let scene, camera, renderer;
+        let customers = [];
+        let tables = [];
+        let kitchen = {};
+        let gameState = {
+            money: 50,
+            level: 1,
+            score: 0,
+            customersServed: 0,
+            upgrades: {
+                cookingSpeed: 1,
+                kitchenCapacity: 2,
+                priceMultiplier: 1.0
+            }
+        };
+
+        const SAVE_KEY = 'restaurant_tycoon_save';
+
+        function snapshotGame(){
+            return {
+                gameState: {
+                    ...gameState,
+                    upgrades: { ...gameState.upgrades }
+                },
+                timestamp: Date.now()
+            };
+        }
+
+        function writeSave(snapshot){
+            const json = JSON.stringify(snapshot);
+            try{ localStorage.setItem(SAVE_KEY, json); }catch(e){}
+            try{
+                const expires = new Date(Date.now() + 365*24*60*60*1000).toUTCString();
+                document.cookie = `${SAVE_KEY}=${encodeURIComponent(json)}; expires=${expires}; path=/`;
+            }catch(e){}
+        }
+
+        function readSave(){
+            let json = null;
+            try{ json = localStorage.getItem(SAVE_KEY); }catch(e){}
+            if(!json){
+                try{
+                    const match = document.cookie.split('; ').find(part => part.startsWith(`${SAVE_KEY}=`));
+                    if(match) json = decodeURIComponent(match.split('=')[1] || '');
+                }catch(e){}
+            }
+            if(!json) return null;
+            try{ return JSON.parse(json); }catch(e){ return null; }
+        }
+
+        function applySnapshot(snapshot){
+            if(!snapshot || !snapshot.gameState) return false;
+            gameState = {
+                ...gameState,
+                ...snapshot.gameState,
+                upgrades: {
+                    ...gameState.upgrades,
+                    ...(snapshot.gameState.upgrades || {})
+                }
+            };
+            updateUI();
+            return true;
+        }
+
+        let orders = {};
+        let cooking = {};
+        let orderIdCounter = 0;
+        let cookingIdCounter = 0;
+
+        const foodTypes = {
+            burger: { name: '🍔 Burger', basePrice: 8, cookTime: 3000, emoji: '🍔' },
+            pizza: { name: '🍕 Pizza', basePrice: 12, cookTime: 5000, emoji: '🍕' },
+            pasta: { name: '🍝 Pasta', basePrice: 10, cookTime: 4000, emoji: '🍝' },
+            salad: { name: '🥗 Salad', basePrice: 6, cookTime: 2000, emoji: '🥗' }
+        };
+
+        function init() {
+            setupScene();
+            createRestaurant();
+            spawnCustomer();
+            setInterval(spawnCustomer, Math.random() * 8000 + 5000);
+            loadGame(true);
+            animate();
+        }
+
+        function setupScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 8, 12);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+        }
+
+        function createRestaurant() {
+            const floorGeometry = new THREE.PlaneGeometry(20, 20);
+            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            createTables();
+            createKitchen();
+        }
+
+        function createTables() {
+            const positions = [[-6,0,-6],[0,0,-6],[6,0,-6],[-6,0,0],[6,0,0],[-6,0,6],[0,0,6],[6,0,6]];
+            positions.forEach(pos => {
+                const group = new THREE.Group();
+                const top = new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,0.1), new THREE.MeshLambertMaterial({color:0x8B4513}));
+                top.position.y=1;
+                group.add(top);
+                const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,1), new THREE.MeshLambertMaterial({color:0x654321}));
+                leg.position.y=0.5;
+                group.add(leg);
+                group.position.set(...pos);
+                scene.add(group);
+                tables.push({position:new THREE.Vector3(...pos),occupied:false,customer:null,group});
+            });
+        }
+
+        function createKitchen() {
+            const counter = new THREE.Mesh(new THREE.BoxGeometry(8,1,2), new THREE.MeshLambertMaterial({color:0x696969}));
+            counter.position.set(0,0.5,8);
+            scene.add(counter);
+            kitchen.counter = counter;
+        }
+
+        function spawnCustomer() {
+            if (customers.length >= tables.length) return;
+            const available = tables.find(t=>!t.occupied);
+            if (!available) return;
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.4,1.5), new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(Math.random(),0.7,0.6)}));
+            body.position.y=1.25; group.add(body);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshLambertMaterial({color:0xFFDBAC}));
+            head.position.y=2.25; group.add(head);
+            group.position.copy(available.position);
+            scene.add(group);
+            available.occupied=true;
+            const cust={id:Math.random().toString(36).substr(2,9),group,table:available,patience:30000+Math.random()*20000,order:null,hasOrdered:false};
+            available.customer=cust;
+            customers.push(cust);
+            setTimeout(()=>placeOrder(cust),2000+Math.random()*3000);
+        }
+
+        function placeOrder(customer) {
+            if (customer.hasOrdered) return;
+            const foodKeys=Object.keys(foodTypes);
+            const food=foodKeys[Math.floor(Math.random()*foodKeys.length)];
+            const id=++orderIdCounter;
+            const order={id,customer,food,timeRemaining:customer.patience,startTime:Date.now()};
+            customer.order=order; customer.hasOrdered=true; orders[id]=order;
+            addFoodIcon(customer, food);
+            updateOrdersDisplay();
+            showNotification(`New order: ${foodTypes[food].name}`);
+        }
+
+        function startCooking(foodType) {
+            if (Object.keys(cooking).length>=gameState.upgrades.kitchenCapacity) return showNotification('Kitchen is full!');
+            const id=++cookingIdCounter;
+            const cookTime=foodTypes[foodType].cookTime/gameState.upgrades.cookingSpeed;
+            cooking[id]={id,food:foodType,progress:0,startTime:Date.now(),cookTime};
+            updateCookingDisplay();
+            const timer=setInterval(()=>{
+                const item=cooking[id]; if(!item){clearInterval(timer);return;}
+                const el=Date.now()-item.startTime; item.progress=Math.min(el/item.cookTime,1);
+                if(item.progress>=1){finishCooking(id);clearInterval(timer);}
+                updateCookingDisplay();
+            },100);
+        }
+
+        function finishCooking(id) {
+            const item=cooking[id]; if(!item)return;
+            delete cooking[id];
+            spawnFoodOnTable(item.food);
+            updateCookingDisplay();
+        }
+
+        function buyUpgrade(type){
+            if(type==='speed'){
+                const cost = Math.floor(100 * gameState.upgrades.cookingSpeed);
+                if(gameState.money < cost) return showNotification('Not enough money for faster cooking!');
+                gameState.money -= cost;
+                gameState.upgrades.cookingSpeed = Math.min(gameState.upgrades.cookingSpeed + 0.5, 5);
+                showNotification('Kitchen cooks faster!');
+            } else if(type==='capacity'){
+                const cost = Math.floor(150 * (gameState.upgrades.kitchenCapacity));
+                if(gameState.money < cost) return showNotification('Not enough money for capacity upgrade!');
+                gameState.money -= cost;
+                gameState.upgrades.kitchenCapacity = Math.min(gameState.upgrades.kitchenCapacity + 1, 6);
+                showNotification('Kitchen can handle more dishes!');
+            } else if(type==='price'){
+                const cost = Math.floor(200 * gameState.upgrades.priceMultiplier);
+                if(gameState.money < cost) return showNotification('Not enough money for price upgrade!');
+                gameState.money -= cost;
+                gameState.upgrades.priceMultiplier = Math.min(Number((gameState.upgrades.priceMultiplier + 0.1).toFixed(1)), 2);
+                showNotification('Menu prices increased!');
+            }
+            updateUI();
+            markProgress();
+        }
+
+        function serveCustomer(order) {
+            removeFoodIcon(order.customer);
+            const c=order.customer;
+            const price=Math.floor(foodTypes[order.food].basePrice*gameState.upgrades.priceMultiplier);
+            gameState.money+=price; gameState.score+=price*10; gameState.customersServed++;
+            delete orders[order.id];
+            scene.remove(c.group); c.table.occupied=false; c.table.customer=null;
+            customers.splice(customers.indexOf(c),1);
+            updateUI(); updateOrdersDisplay();
+            showNotification(`Served ${foodTypes[order.food].name}! +$${price}`);
+            markProgress();
+        }
+
+        function expireOrder(order) {
+            const phrases=["ur no fun","im telling dad","my fooooood","rip, cooked kitchen"];
+            showNotification(phrases[Math.floor(Math.random()*phrases.length)]);
+            removeFoodIcon(order.customer);
+            const c=order.customer;
+            delete orders[order.id];
+            scene.remove(c.group); c.table.occupied=false; c.table.customer=null;
+            customers.splice(customers.indexOf(c),1);
+            updateOrdersDisplay();
+        }
+
+        // === Food Drag & Serve System ===
+        const tableArea=document.getElementById('gameContainer');
+        let draggedFood=null;
+
+        function spawnFoodOnTable(foodType){
+            const div=document.createElement('div');
+            div.className='food-item';
+            div.textContent=foodTypes[foodType].emoji;
+            div.style.left=`${Math.random()*(window.innerWidth-80)}px`;
+            div.style.top=`${window.innerHeight-200+Math.random()*100}px`;
+            div.dataset.food=foodType;
+            tableArea.appendChild(div);
+            div.onmousedown=e=>{draggedFood=div;div.offsetX=e.offsetX;div.offsetY=e.offsetY;};
+        }
+
+        document.onmousemove=e=>{
+            if(draggedFood){draggedFood.style.left=e.pageX-draggedFood.offsetX+'px';draggedFood.style.top=e.pageY-draggedFood.offsetY+'px';}
+        };
+
+        document.onmouseup=e=>{
+            if(!draggedFood)return;
+
+            let served=false;
+            const rect=draggedFood.getBoundingClientRect();
+
+            Object.values(orders).forEach(order=>{
+                const cust=order.customer;
+                if(!cust.foodIcon)return;
+
+                const iconRect=cust.foodIcon.getBoundingClientRect();
+                const overlap=!(
+                    rect.right<iconRect.left||
+                    rect.left>iconRect.right||
+                    rect.bottom<iconRect.top||
+                    rect.top>iconRect.bottom
+                );
+
+                if(overlap&&draggedFood.dataset.food===order.food){
+                    serveCustomer(order);
+                    draggedFood.remove();
+                    served=true;
+                }
+            });
+
+            if(!served){
+                draggedFood.style.top=`${window.innerHeight-180}px`;
+                draggedFood.style.left=`${Math.random()*(window.innerWidth-100)}px`;
+            }
+
+            draggedFood=null;
+        };
+
+        function addFoodIcon(cust,food){
+            const div=document.createElement('div');
+            div.className='food-icon'; div.textContent=foodTypes[food].emoji;
+            document.body.appendChild(div);
+            cust.foodIcon=div; updateFoodIconPosition(cust);
+        }
+
+        function updateFoodIconPosition(cust){
+            if(!cust.foodIcon)return;
+            const v=cust.group.position.clone().project(camera);
+            const x=(v.x*0.5+0.5)*window.innerWidth;
+            const y=(-v.y*0.5+0.5)*window.innerHeight;
+            cust.foodIcon.style.left=`${x-10}px`;
+            cust.foodIcon.style.top=`${y-50}px`;
+        }
+        function removeFoodIcon(cust){if(cust.foodIcon){cust.foodIcon.remove();cust.foodIcon=null;}}
+
+        function updateIcons(){customers.forEach(updateFoodIconPosition);requestAnimationFrame(updateIcons);}
+        updateIcons();
+
+        function updateOrdersDisplay(){
+            const div=document.getElementById('orders'); div.innerHTML='';
+            Object.values(orders).forEach(o=>{
+                const d=document.createElement('div'); d.className='order-item';
+                const left=Math.max(0,o.timeRemaining-(Date.now()-o.startTime));
+                const percent=(left/o.timeRemaining)*100;
+                d.innerHTML=`<div><strong>${foodTypes[o.food].name}</strong></div>
+                <div>Price: $${Math.floor(foodTypes[o.food].basePrice*gameState.upgrades.priceMultiplier)}</div>
+                <div>Time left: ${Math.ceil(left/1000)}s</div>
+                <div class="order-timer" style="width:${percent}%"></div>`;
+                div.appendChild(d);
+                if(left<=0)setTimeout(()=>expireOrder(o),100);
+            });
+        }
+
+        function updateCookingDisplay(){
+            const div=document.getElementById('cooking'); div.innerHTML='';
+            Object.values(cooking).forEach(i=>{
+                const d=document.createElement('div'); d.className='cooking-item';
+                d.innerHTML=`<div><strong>Cooking ${foodTypes[i.food].name}</strong></div>
+                <div class="cooking-progress" style="width:${i.progress*100}%"></div>`;
+                div.appendChild(d);
+            });
+        }
+
+        function updateUI(){
+            document.getElementById('money').textContent=gameState.money;
+            document.getElementById('level').textContent=gameState.level;
+            document.getElementById('score').textContent=gameState.score;
+            document.getElementById('served').textContent=gameState.customersServed;
+            document.getElementById('speedLevel').textContent=gameState.upgrades.cookingSpeed;
+            document.getElementById('capacityLevel').textContent=gameState.upgrades.kitchenCapacity;
+            document.getElementById('priceLevel').textContent=gameState.upgrades.priceMultiplier.toFixed(1);
+        }
+
+        function showNotification(msg){
+            const n=document.getElementById('notification');
+            n.textContent=msg; n.style.display='block';
+            setTimeout(()=>{n.style.display='none';},2000);
+        }
+
+        function markProgress(){
+            gameState.score = Math.max(gameState.score, 0);
+            persistGame();
+        }
+
+        function persistGame(){
+            const snapshot = snapshotGame();
+            writeSave(snapshot);
+        }
+
+        function saveGame(){
+            persistGame();
+            showNotification('Game saved!');
+        }
+
+        function loadGame(silent=false){
+            const snapshot = readSave();
+            if(!snapshot){
+                if(!silent) showNotification('No save found.');
+                return;
+            }
+            if(applySnapshot(snapshot)){
+                if(!silent) showNotification('Game loaded!');
+            } else if(!silent){
+                showNotification('Save corrupted.');
+            }
+        }
+
+        function animate(){
+            requestAnimationFrame(animate);
+            Object.values(orders).forEach(o=>{if(o.timeRemaining-(Date.now()-o.startTime)<=0)expireOrder(o);});
+            updateOrdersDisplay();
+            renderer.render(scene,camera);
+        }
+
+        window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+        init();
+    </script>
+</body>
+</html>

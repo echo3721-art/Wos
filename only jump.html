@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Rush: Infinite Flip Parkour</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(0deg, #000000 0%, #1a1a2e 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            color: white;
+            position: relative;
+        }
+        
+        /* Left side with face */
+        .city-left {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 30%;
+            height: 100%;
+            background-image: url('city.jpg');
+            background-size: cover;
+            background-position: right center;
+            opacity: 0.8;
+            z-index: -1;
+            display: block !important;
+        }
+        
+               
+        /* Right side with face */
+        .city-right {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 30%;
+            height: 100%;
+            background-image: url('city.jpg');
+            background-size: cover;
+            background-position: left center;
+            opacity: 0.8;
+            z-index: -1;
+            display: block !important;
+        }
+        
+        /* Right face */
+        .face-right {
+            position: fixed;
+            top: 50%;
+            right: 5%;
+            transform: translateY(-50%);
+            width: 150px;
+            height: 150px;
+            z-index: 0;
+            display: block !important;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            width: 100%;
+            pointer-events: none;
+        }
+        
+        #hud {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            backdrop-filter: blur(20px);
+            border: 2px solid #00ffff;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+        
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(0,255,255,0.5);
+        }
+        
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0,255,255,0.1) 0%, rgba(255,0,255,0.1) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            z-index: 200;
+        }
+        
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(45deg, #00ffff, #ff00ff, #ffff00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 20px #00ffff); }
+            to { filter: drop-shadow(0 0 30px #ff00ff); }
+        }
+        
+        .status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+            display: none;
+            z-index: 150;
+        }
+    </style>
+</head>
+<body>
+    <!-- Audio player for cyber.mp3 looping in the background -->
+    <audio id="bgMusic" autoplay loop>
+        <source src="cyber.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    
+    <!-- City background images and faces on left and right sides -->
+    <div class="city-left"></div>
+    <div class="city-right"></div>
+    <img src="city.png" class="face-left" alt="Face">
+    <img src="city.png" class="face-right" alt="Face">
+    
+    <div id="gameContainer">
+        <div id="startScreen">
+            <h1>🌀 SKY RUSH 🌀<br>Infinite Flip Parkour</h1>
+            <p style="font-size: 20px; margin-bottom: 30px; text-align: center;">
+                Master the art of parkour in floating sky cities!<br>
+                Wall-run, flip, dash, and survive the infinite rush!
+            </p>
+            <button onclick="startGame()">🚀 START GAME</button>
+        </div>
+        
+        <div id="ui">
+            <div id="hud">
+                <div>Distance: <span id="distance">0</span>m</div>
+                <div>Score: <span id="score">0</span></div>
+                <div>Speed: <span id="speed">0</span></div>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <strong>🎮 CONTROLS:</strong><br>
+            WASD - Move | SPACE - Jump/Double Jump<br>
+            SHIFT - Sprint | C - Crouch/Slide<br>
+            E - Air Dash | Q - FLIP MODE<br>
+            Left Click - Lock Mouse | Right Click + Drag - Camera
+        </div>
+        
+        <div id="gameOver">
+            <h2>🌟 Run Complete! 🌟</h2>
+            <p>Final Distance: <span id="finalDistance">0</span>m</p>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p id="newRecord" style="color: #00ffff; display: none;">🏆 NEW RECORD! 🏆</p>
+            <button onclick="restartGame()">🔄 PLAY AGAIN</button>
+        </div>
+        
+        <div id="flipStatus" class="status">🌀 FLIP MODE ACTIVE</div>
+        <div id="slowStatus" class="status">⏰ TIME SLOW ACTIVE</div>
+    </div>
+
+    <script>
+        // Game variables
+        let scene, camera, renderer, player, platforms = [], obstacles = [], powerups = [];
+        let gameState = 'menu'; // menu, playing, gameOver
+        
+        let gameStats = {
+            distance: 0,
+            score: 0,
+            bestDistance: 0
+        };
+        
+        let playerStats = {
+            position: new THREE.Vector3(0, 2, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            onGround: true,
+            onWall: false,
+            canDoubleJump: true,
+            isFlipped: false,
+            speed: 0.14,        // Reduced base speed by 30%
+            maxSpeed: 0.21,     // Reduced max speed by 30%
+            jumpPower: 0.3,
+            wallRunning: false,
+            crouching: false,
+            airDashCooldown: 0,
+            timeSlowActive: false,
+            timeSlowTimer: 0
+        };
+        
+        let keys = {};
+        let mouse = { x: 0, y: 0, sensitivity: 0.001, rightButtonDown: false };
+        let worldOffset = 0;
+        let platformSpawnZ = -20;
+        let cameraRotation = { x: 0, y: 0 };
+        
+        // Initialize the game
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x1e3c72, 50, 200);
+            
+            // Create camera with narrower FOV for better first-person view
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x1e3c72);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+            
+            // Create lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(-1, 1, 1);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Create neon lights
+            const neonLight1 = new THREE.PointLight(0x00ffff, 2, 50);
+            neonLight1.position.set(10, 10, 0);
+            scene.add(neonLight1);
+            
+            const neonLight2 = new THREE.PointLight(0xff00ff, 2, 50);
+            neonLight2.position.set(-10, 10, -20);
+            scene.add(neonLight2);
+            
+            // Create player
+            createPlayer();
+            
+            // Generate initial platforms
+            generatePlatforms();
+            
+            // Event listeners
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right-click menu
+            document.addEventListener('click', () => {
+                if (gameState === 'playing') {
+                    document.body.requestPointerLock();
+                }
+            });
+            
+            // Start render loop
+            animate();
+        }
+        
+        function createPlayer() {
+            // Create an invisible player for collision detection only
+            const geometry = new THREE.BoxGeometry(1, 2, 1);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0 // Completely invisible
+            });
+            player = new THREE.Mesh(geometry, material);
+            player.position.copy(playerStats.position);
+            player.castShadow = true;
+            player.visible = false; // Hide the player mesh completely
+            scene.add(player);
+            
+            // Create a shadow-only representation for third-person awareness
+            // This will only be visible as a shadow on the ground
+            const shadowGeometry = new THREE.BoxGeometry(1, 2, 1);
+            const shadowMaterial = new THREE.MeshLambertMaterial({
+                color: 0x000000,
+                transparent: true,
+                opacity: 0.3
+            });
+            const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+            shadow.castShadow = true;
+            shadow.visible = true;
+            player.add(shadow);
+        }
+        
+        function generatePlatforms() {
+            // Create starting platform at player position
+            createStartingPlatform();
+            
+            // Generate initial set of platforms with increased distance between them
+            for (let i = 0; i < 30; i++) {
+                // Increased platform distance
+                createPlatform(platformSpawnZ - i * 15);
+            }
+        }
+        
+        function createStartingPlatform() {
+            const geometry = new THREE.BoxGeometry(15, 2, 15); // Bigger and thicker
+            const material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+            
+            const platform = new THREE.Mesh(geometry, material);
+            platform.position.set(0, 0, 0); // Right under the player
+            platform.receiveShadow = true;
+            platform.castShadow = true;
+            scene.add(platform);
+            platforms.push(platform);
+        }
+        
+        function createPlatform(z) {
+            // Main platform - more consistent sizing
+            const width = 6 + Math.random() * 4;  // More consistent width
+            const height = 0.5;
+            const depth = 6 + Math.random() * 2;  // More consistent depth
+            
+            // Create procedural variation based on distance for infinite feel
+            const distanceFactor = Math.abs(z) / 100; // Increases as player goes further
+            
+            // Color varies based on distance for visual progression
+            const hue = (Math.abs(z) * 0.01) % 1; // Cycles through colors as you progress
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: new THREE.Color().setHSL(hue, 0.8, 0.6)
+            });
+            
+            const platform = new THREE.Mesh(geometry, material);
+            
+            // Add some variation to platform positions based on distance
+            // Further platforms can have more extreme positions
+            const xVariation = Math.min(20, 15 + distanceFactor * 5);
+            const yVariation = Math.min(10, 6 + distanceFactor * 3);
+            
+            platform.position.set(
+                (Math.random() - 0.5) * xVariation,
+                Math.random() * yVariation - 1,
+                z
+            );
+            platform.receiveShadow = true;
+            platform.castShadow = true;
+            scene.add(platform);
+            platforms.push(platform);
+            
+            // Add speed booster tiles occasionally
+            if (Math.random() < 0.3) {
+                const boosterGeometry = new THREE.BoxGeometry(width * 0.8, 0.1, depth * 0.8);
+                const boosterMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x00ff00,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const booster = new THREE.Mesh(boosterGeometry, boosterMaterial);
+                booster.position.copy(platform.position);
+                booster.position.y += height/2 + 0.05;
+                booster.userData = { type: 'booster' };
+                scene.add(booster);
+                powerups.push(booster);
+            }
+            
+            // Add time slow orbs occasionally
+            if (Math.random() < 0.15) {
+                const orbGeometry = new THREE.SphereGeometry(0.5, 8, 6);
+                const orbMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xffff00,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const orb = new THREE.Mesh(orbGeometry, orbMaterial);
+                orb.position.copy(platform.position);
+                orb.position.y += 3;
+                orb.userData = { type: 'timeSlow' };
+                scene.add(orb);
+                powerups.push(orb);
+            }
+            
+            // Add obstacles occasionally
+            if (Math.random() < 0.4) {
+                createObstacle(platform.position);
+            }
+        }
+        
+        function createObstacle(platformPos) {
+            const types = ['laser', 'spike', 'wall'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            let obstacle;
+            if (type === 'laser') {
+                const geometry = new THREE.BoxGeometry(0.2, 4, 0.2);
+                const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.set(
+                    platformPos.x + (Math.random() - 0.5) * 3,
+                    platformPos.y + 2,
+                    platformPos.z
+                );
+            } else if (type === 'spike') {
+                const geometry = new THREE.ConeGeometry(0.5, 2, 6);
+                const material = new THREE.MeshLambertMaterial({ color: 0x666666 });
+                obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.set(
+                    platformPos.x + (Math.random() - 0.5) * 3,
+                    platformPos.y + 1,
+                    platformPos.z
+                );
+            } else {
+                const geometry = new THREE.BoxGeometry(1, 3, 0.5);
+                const material = new THREE.MeshLambertMaterial({ color: 0x444444 });
+                obstacle = new THREE.Mesh(geometry, material);
+                obstacle.position.set(
+                    platformPos.x + (Math.random() - 0.5) * 3,
+                    platformPos.y + 1.5,
+                    platformPos.z
+                );
+            }
+            
+            obstacle.userData = { type: 'obstacle' };
+            obstacle.castShadow = true;
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        }
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameState = 'playing';
+            resetGame();
+            document.body.requestPointerLock();
+        }
+        
+        function resetGame() {
+            // Clear existing platforms first
+            platforms.forEach(platform => scene.remove(platform));
+            platforms = [];
+            obstacles.forEach(obstacle => scene.remove(obstacle));
+            obstacles = [];
+            powerups.forEach(powerup => scene.remove(powerup));
+            powerups = [];
+            
+            // Reset player state
+            playerStats.position.set(0, 3, 0); // Start higher
+            playerStats.velocity.set(0, 0, 0);
+            playerStats.onGround = false; // Will be set true by collision
+            playerStats.isFlipped = false;
+            playerStats.timeSlowActive = false;
+            playerStats.canDoubleJump = true;
+            playerStats.wallRunning = false;
+            playerStats.airDashCooldown = 0;
+            
+            // Reset game stats
+            gameStats.distance = 0;
+            gameStats.score = 0;
+            worldOffset = 0;
+            cameraRotation.x = 0;
+            cameraRotation.y = 0;
+            platformSpawnZ = -20;
+            
+            // Reset camera rotation order for proper first-person view
+            camera.rotation.order = 'YXZ';
+            
+            // Generate fresh platforms
+            generatePlatforms();
+        }
+        
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            startGame();
+        }
+        
+        function gameOver() {
+            gameState = 'gameOver';
+            document.exitPointerLock();
+            
+            document.getElementById('finalDistance').textContent = Math.floor(gameStats.distance);
+            document.getElementById('finalScore').textContent = gameStats.score;
+            
+            if (gameStats.distance > gameStats.bestDistance) {
+                gameStats.bestDistance = Math.floor(gameStats.distance);
+                document.getElementById('newRecord').style.display = 'block';
+            }
+            
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function onKeyDown(event) {
+            keys[event.code] = true;
+            
+            if (gameState !== 'playing') return;
+            
+            switch(event.code) {
+                case 'Space':
+                    event.preventDefault();
+                    jump();
+                    break;
+                case 'KeyQ':
+                    toggleFlipMode();
+                    break;
+                case 'KeyE':
+                    airDash();
+                    break;
+            }
+        }
+        
+        function onKeyUp(event) {
+            keys[event.code] = false;
+        }
+        
+        function onMouseMove(event) {
+            if (gameState !== 'playing') return;
+            
+            if (document.pointerLockElement === document.body) {
+                // First person view with pointer lock
+                cameraRotation.x -= event.movementY * 0.002; // Fixed sensitivity for consistent control
+                cameraRotation.y -= event.movementX * 0.002;
+                
+                // Limit vertical rotation to prevent camera flipping
+                cameraRotation.x = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, cameraRotation.x));
+            } else if (mouse.rightButtonDown) {
+                // Right mouse button held (alternative camera control)
+                const movementX = event.clientX - mouse.x;
+                const movementY = event.clientY - mouse.y;
+                
+                cameraRotation.y -= movementX * 0.002;
+                cameraRotation.x -= movementY * 0.002;
+                
+                // Limit vertical rotation
+                cameraRotation.x = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, cameraRotation.x));
+            }
+            
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        }
+        
+        function onMouseDown(event) {
+            if (gameState !== 'playing') return;
+            
+            if (event.button === 2) { // Right mouse button
+                mouse.rightButtonDown = true;
+                event.preventDefault();
+            }
+        }
+        
+        function onMouseUp(event) {
+            if (event.button === 2) { // Right mouse button
+                mouse.rightButtonDown = false;
+                event.preventDefault();
+            }
+        }
+        
+        function jump() {
+            if (playerStats.onGround) {
+                // Reduced jump power for slower, floatier jumps
+                playerStats.velocity.y = playerStats.isFlipped ? -playerStats.jumpPower * 0.8 : playerStats.jumpPower * 0.8;
+                playerStats.onGround = false;
+            } else if (playerStats.wallRunning) {
+                // Reduced wall jump power for slower, floatier jumps
+                playerStats.velocity.y = playerStats.isFlipped ? -playerStats.jumpPower * 0.8 : playerStats.jumpPower * 0.8;
+                playerStats.wallRunning = false;
+            } else if (playerStats.canDoubleJump) {
+                // Reduced double jump power for slower, floatier jumps
+                playerStats.velocity.y = playerStats.isFlipped ? -playerStats.jumpPower * 0.8 : playerStats.jumpPower * 0.8;
+                playerStats.canDoubleJump = false;
+            }
+        }
+        
+        function toggleFlipMode() {
+            if (!playerStats.onGround) {
+                playerStats.isFlipped = !playerStats.isFlipped;
+                document.getElementById('flipStatus').style.display = playerStats.isFlipped ? 'block' : 'none';
+                
+                // Flip gravity immediately when toggling flip mode
+                playerStats.velocity.y = -playerStats.velocity.y;
+                
+                if (playerStats.isFlipped) {
+                    setTimeout(() => {
+                        document.getElementById('flipStatus').style.display = 'none';
+                    }, 2000);
+                }
+            }
+        }
+        
+        function airDash() {
+            if (playerStats.airDashCooldown <= 0 && !playerStats.onGround) {
+                const dashDirection = new THREE.Vector3(0, 0, -1.5); // Increased Z component for more forward dash
+                dashDirection.applyQuaternion(camera.quaternion);
+                playerStats.velocity.add(dashDirection.multiplyScalar(0.8)); // Increased from 0.4 to 0.8 for more powerful dash
+                playerStats.airDashCooldown = 60; // 1 second cooldown at 60fps
+            }
+        }
+        
+        function updatePlayer() {
+            if (gameState !== 'playing') return;
+            
+            // Handle movement input
+            const moveVector = new THREE.Vector3();
+            
+            if (keys['KeyW']) moveVector.z -= 1;
+            if (keys['KeyS']) moveVector.z += 1;
+            if (keys['KeyA']) moveVector.x -= 1;
+            if (keys['KeyD']) moveVector.x += 1;
+            
+            // Apply sprint with increased speed
+            const currentSpeed = keys['ShiftLeft'] ? playerStats.maxSpeed * 2.5 : playerStats.maxSpeed;
+            
+            // Apply movement relative to camera
+            if (moveVector.length() > 0) {
+                moveVector.normalize();
+                moveVector.applyQuaternion(camera.quaternion);
+                moveVector.y = 0; // Don't apply vertical movement from camera
+                moveVector.normalize();
+                
+                playerStats.velocity.x += moveVector.x * currentSpeed * 0.1;
+                playerStats.velocity.z += moveVector.z * currentSpeed * 0.1;
+            }
+            
+            // Apply gravity with floating effect
+            if (!playerStats.onGround && !playerStats.wallRunning) {
+                // Reduced gravity for slower falling
+                const gravity = playerStats.isFlipped ? 0.003 : -0.003;
+                playerStats.velocity.y += gravity;
+                
+                // Add small floating effect when falling
+                if (playerStats.velocity.y > 0) {
+                    playerStats.velocity.y -= 0.0005; // Reduced upward force when falling for slower movement
+                }
+            }
+            
+            // Air resistance - slightly increased for better control
+            playerStats.velocity.x *= 0.92;
+            playerStats.velocity.z *= 0.92;
+            
+            // Limit velocity
+            const maxVel = 1.0;
+            if (playerStats.velocity.length() > maxVel) {
+                playerStats.velocity.normalize().multiplyScalar(maxVel);
+            }
+            
+            // Update position
+            playerStats.position.add(playerStats.velocity);
+            
+            // Crouch/slide
+            if (keys['KeyC']) {
+                playerStats.crouching = true;
+                player.scale.y = 0.5;
+                if (playerStats.onGround) {
+                    playerStats.velocity.z -= 0.05; // Slide boost
+                }
+            } else {
+                playerStats.crouching = false;
+                player.scale.y = 1;
+            }
+            
+            // Check collisions with platforms
+            checkPlatformCollisions();
+            
+            // Check collisions with obstacles and powerups
+            checkObstacleCollisions();
+            checkPowerupCollisions();
+            
+            // Update cooldowns
+            if (playerStats.airDashCooldown > 0) playerStats.airDashCooldown--;
+            
+            // Handle time slow
+            if (playerStats.timeSlowActive) {
+                playerStats.timeSlowTimer--;
+                if (playerStats.timeSlowTimer <= 0) {
+                    playerStats.timeSlowActive = false;
+                    document.getElementById('slowStatus').style.display = 'none';
+                }
+            }
+            
+            // Update world
+            worldOffset += 0.1;
+            gameStats.distance += 0.1;
+            gameStats.score += Math.floor(playerStats.velocity.length() * 10);
+            
+            // Generate new platforms with increased distance
+            // Create platforms more frequently for infinite generation
+            if (worldOffset > 5) {
+                // Calculate the farthest platform z position
+                let farthestZ = platformSpawnZ;
+                for (let platform of platforms) {
+                    if (platform.position.z < farthestZ) {
+                        farthestZ = platform.position.z;
+                    }
+                }
+                
+                // Create a new platform beyond the farthest one
+                createPlatform(farthestZ - 15);
+                worldOffset = 0;
+            }
+            
+            // Remove distant objects
+            cleanupObjects();
+            
+            // Check for game over (falling too far)
+            if (playerStats.position.y < -20) {
+                gameOver();
+            }
+            
+            // Update player mesh
+            player.position.copy(playerStats.position);
+            if (playerStats.isFlipped) {
+                player.rotation.z = Math.PI;
+            } else {
+                player.rotation.z = 0;
+            }
+        }
+        
+        function checkPlatformCollisions() {
+            let wasOnGround = playerStats.onGround;
+            playerStats.onGround = false;
+            playerStats.wallRunning = false;
+            
+            for (let platform of platforms) {
+                const playerBox = new THREE.Box3().setFromObject(player);
+                const platformBox = new THREE.Box3().setFromObject(platform);
+                
+                // Check if player is near platform
+                const distance = playerStats.position.distanceTo(platform.position);
+                if (distance > 20) continue; // Skip distant platforms
+                
+                // Get platform bounds
+                const platformTop = platform.position.y + platform.geometry.parameters.height/2;
+                const platformBottom = platform.position.y - platform.geometry.parameters.height/2;
+                const platformLeft = platform.position.x - platform.geometry.parameters.width/2;
+                const platformRight = platform.position.x + platform.geometry.parameters.width/2;
+                const platformFront = platform.position.z - platform.geometry.parameters.depth/2;
+                const platformBack = platform.position.z + platform.geometry.parameters.depth/2;
+                
+                // Check if player is above platform horizontally
+                const playerOnPlatformX = playerStats.position.x >= platformLeft - 0.5 && playerStats.position.x <= platformRight + 0.5;
+                const playerOnPlatformZ = playerStats.position.z >= platformFront - 0.5 && playerStats.position.z <= platformBack + 0.5;
+                
+                if (playerOnPlatformX && playerOnPlatformZ) {
+                    // Landing on top (normal mode)
+                    if (!playerStats.isFlipped && playerStats.position.y >= platformTop && playerStats.position.y <= platformTop + 2) {
+                        if (playerStats.velocity.y <= 0) {
+                            playerStats.position.y = platformTop + 1;
+                            playerStats.velocity.y = 0;
+                            playerStats.onGround = true;
+                            playerStats.canDoubleJump = true;
+                        }
+                    }
+                    // Landing on bottom (flipped mode)
+                    else if (playerStats.isFlipped && playerStats.position.y <= platformBottom && playerStats.position.y >= platformBottom - 2) {
+                        if (playerStats.velocity.y >= 0) {
+                            playerStats.position.y = platformBottom - 1;
+                            playerStats.velocity.y = 0;
+                            playerStats.onGround = true;
+                            playerStats.canDoubleJump = true;
+                        }
+                    }
+                }
+                
+                // Wall running on sides
+                if (!playerStats.onGround && Math.abs(playerStats.velocity.y) > 0.01) {
+                    const nearLeftWall = Math.abs(playerStats.position.x - platformLeft) < 1.5;
+                    const nearRightWall = Math.abs(playerStats.position.x - platformRight) < 1.5;
+                    const nearFrontWall = Math.abs(playerStats.position.z - platformFront) < 1.5;
+                    const nearBackWall = Math.abs(playerStats.position.z - platformBack) < 1.5;
+                    
+                    if ((nearLeftWall || nearRightWall || nearFrontWall || nearBackWall) && 
+                        playerStats.position.y > platformBottom && playerStats.position.y < platformTop + 3) {
+                        playerStats.wallRunning = true;
+                        playerStats.velocity.y = Math.max(playerStats.velocity.y, -0.05);
+                        playerStats.canDoubleJump = true;
+                    }
+                }
+            }
+        }
+        
+        function checkObstacleCollisions() {
+            for (let obstacle of obstacles) {
+                const playerBox = new THREE.Box3().setFromObject(player);
+                const obstacleBox = new THREE.Box3().setFromObject(obstacle);
+                
+                if (playerBox.intersectsBox(obstacleBox)) {
+                    gameOver();
+                    return;
+                }
+            }
+        }
+        
+        function checkPowerupCollisions() {
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const powerup = powerups[i];
+                const playerBox = new THREE.Box3().setFromObject(player);
+                const powerupBox = new THREE.Box3().setFromObject(powerup);
+                
+                if (playerBox.intersectsBox(powerupBox)) {
+                    // Apply powerup effect
+                    if (powerup.userData.type === 'booster') {
+                        playerStats.velocity.z -= 0.3; // Speed boost
+                        gameStats.score += 50;
+                    } else if (powerup.userData.type === 'timeSlow') {
+                        playerStats.timeSlowActive = true;
+                        playerStats.timeSlowTimer = 300; // 5 seconds
+                        document.getElementById('slowStatus').style.display = 'block';
+                        gameStats.score += 100;
+                    }
+                    
+                    // Remove powerup
+                    scene.remove(powerup);
+                    powerups.splice(i, 1);
+                }
+            }
+        }
+        
+        function cleanupObjects() {
+            const cleanupDistance = 50; // Increased cleanup distance for better performance
+            
+            // Remove platforms that are too far behind
+            for (let i = platforms.length - 1; i >= 0; i--) {
+                if (platforms[i].position.z > playerStats.position.z + cleanupDistance) {
+                    scene.remove(platforms[i]);
+                    platforms.splice(i, 1);
+                }
+            }
+            
+            // Remove obstacles that are too far behind
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                if (obstacles[i].position.z > playerStats.position.z + cleanupDistance) {
+                    scene.remove(obstacles[i]);
+                    obstacles.splice(i, 1);
+                }
+            }
+            
+            // Remove powerups that are too far behind
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                if (powerups[i].position.z > playerStats.position.z + cleanupDistance) {
+                    scene.remove(powerups[i]);
+                    powerups.splice(i, 1);
+                }
+            }
+            
+            // Log platform count for performance monitoring (optional)
+            // console.log('Active platforms: ' + platforms.length);
+        }
+        
+        function updateCamera() {
+            if (gameState !== 'playing') return;
+            
+            // True first-person camera - directly set position
+            camera.position.copy(playerStats.position);
+            camera.position.y += playerStats.crouching ? 0.5 : 1;
+            
+            // Apply camera rotation directly
+            camera.rotation.order = 'YXZ'; // Important for first-person controls
+            camera.rotation.x = cameraRotation.x;
+            camera.rotation.y = cameraRotation.y;
+            camera.rotation.z = playerStats.isFlipped ? Math.PI : 0;
+        }
+        
+        function updateUI() {
+            document.getElementById('distance').textContent = Math.floor(gameStats.distance);
+            document.getElementById('score').textContent = gameStats.score;
+            document.getElementById('speed').textContent = Math.floor(playerStats.velocity.length() * 100);
+        }
+        
+        // Game loop with fixed timestep for 120 TPS
+        let lastTime = 0;
+        let accumulator = 0;
+        const timeStep = 1000 / 120; // 120 TPS in milliseconds
+        
+        function animate(currentTime = 0) {
+            requestAnimationFrame(animate);
+            
+            // Calculate delta time
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            
+            // Add delta time to accumulator
+            accumulator += deltaTime;
+            
+            // Update game logic at fixed time steps
+            while (accumulator >= timeStep) {
+                updatePlayer();
+                updateCamera();
+                updateUI();
+                accumulator -= timeStep;
+            }
+            
+            // Render at full frame rate
+            if (playerStats.timeSlowActive) {
+                renderer.render(scene, camera);
+                // Render multiple frames for slow motion effect
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => renderer.render(scene, camera), i * 8);
+                }
+            } else {
+                renderer.render(scene, camera);
+            }
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Audio controls
+        function toggleAudio() {
+            const audio = document.getElementById('bgMusic');
+            if (audio.paused) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        }
+        
+        // Initialize the game
+        init();
+        // Start the game loop with the current timestamp
+        animate(performance.now());
+        
+        // Make sure audio is playing
+        document.addEventListener('click', function() {
+            const audio = document.getElementById('bgMusic');
+            if (audio.paused) {
+                audio.play();
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>

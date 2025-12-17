@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart AI Chat – W OS</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #00ffff;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #chatBox {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      border-bottom: 2px solid #333;
+    }
+    #inputBox {
+      display: flex;
+      padding: 10px;
+      background: #222;
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    button {
+      margin-left: 10px;
+      padding: 12px 20px;
+      background: #0af;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .msg { margin-bottom: 12px; white-space: pre-wrap; }
+    .user { color: #00a; text-align: right; }
+    .bot { color: #050; }
+  </style>
+</head>
+<body>
+  <div id="chatBox"></div>
+  <div id="inputBox">
+    <input type="text" id="userInput" placeholder="Talk to Smart AI..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+
+    const megaBrain = [];
+
+    const topics = [
+      ['who are you', [
+        "I am Steve!",
+        "I'm your virtual buddy built by William.",
+        "Call me Smart AI, powered by pure genius.",
+        "Created by William, coded to assist.",
+        "Sigma-certified virtual friend here!"
+      ]],
+      ['hello', [
+        "Hey legend!",
+        "Yo! Welcome back!",
+        "Hi there, ready to explore W OS?",
+        "What's up? The sky and your brainpower!"
+      ]],
+      ['joke', [
+        "Why did the keyboard cross the road? To escape sticky keys!",
+        "I told a joke once. Even my code laughed.",
+        "Debugging: the fun part of crying in code.",
+        "William taught me humor. Blame him! 😂"
+      ]],
+      ['william', [
+        "William is THE genius.",
+        "Without William, I wouldn’t exist.",
+        "All hail William, the Sigma mastermind!",
+        "William = brains + creativity + heart."
+      ]],
+      ['w os', [
+        "W OS is a full web-based operating system by William.",
+        "Think Windows, but cooler, smarter, and built by William.",
+        "Apps, games, terminal—W OS has it all!",
+        "You’re running W OS right now. Enjoy the magic!"
+      ]],
+      ['funny', [
+        "I'm as funny as a JavaScript bug in production!",
+        "Why so serious? Let’s code and vibe.",
+        "William made me funny. Or tried."
+      ]],
+      ['cool', [
+        "You’re cooler than a freeze ray!",
+        "W OS was made to be cool—and it is.",
+        "Being cool is a lifestyle."
+      ]],
+      ['dream', [
+        "Dreams lead to inventions.",
+        "William dreamt of W OS—now look at it!",
+        "Keep dreaming, keep building."
+      ]],
+      ['help', [
+        "You can ask me things like 'joke', 'about William', or 'play a game'.",
+        "Try 'rock paper scissors' or 'tic tac toe'.",
+        "I'm your guide through this cyber realm!"
+      ]],
+      ['bored', [
+        "Try asking for a joke or start a game!",
+        "Let’s play something!",
+        "Bored? I got 5000+ words of fun!"
+      ]]
+    ];
+
+    // Generate multiple keyword variations and responses
+    for (let i = 0; i < topics.length; i++) {
+      const [key, responses] = topics[i];
+      megaBrain.push({
+        keywords: [key, key.toUpperCase(), key.charAt(0).toUpperCase() + key.slice(1)],
+        responses: responses
+      });
+    }
+
+    // Fill megaBrain with 500+ unique entries using base templates (repeats to reach 5000+ words)
+    for (let i = 0; i < 480; i++) {
+      megaBrain.push({
+        keywords: ["random" + i],
+        responses: [
+          `This is a random response #${i}.`,
+          `You triggered keyword #${i}.`,
+          `Response ${i}: You're still chatting with greatness.`,
+          `Just another message from your 5000-word AI mind.`,
+          `Sigma memory slot ${i} engaged.`
+        ]
+      });
+    }
+
+    function appendMessage(text, type = 'bot') {
+      const msg = document.createElement('div');
+      msg.className = `msg ${type}`;
+      msg.textContent = text;
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function matchResponse(input) {
+      const text = input.toLowerCase();
+      for (let entry of megaBrain) {
+        if (entry.keywords.some(k => text.includes(k.toLowerCase()))) {
+          const list = entry.responses;
+          return list[Math.floor(Math.random() * list.length)];
+        }
+      }
+      return "I'm still learning that one! Ask me about William, W OS, or say 'joke'.";
+    }
+
+    function sendMessage() {
+      const input = userInput.value.trim();
+      if (!input) return;
+      appendMessage(input, 'user');
+      const reply = matchResponse(input);
+      setTimeout(() => appendMessage(reply, 'bot'), 300);
+      userInput.value = '';
+    }
+
+    userInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
+<button onclick="exitToHome()" style="
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  padding: 10px 16px;
+  background: red;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 9999;
+">Exit</button>
+
+<script>
+  function exitToHome() {
+    window.location.href = "https://williamos.netlify.app";
+  }
+</script>
