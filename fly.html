@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D Flying Space Game</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000;
+        }
+        canvas { 
+            display: block; 
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 48px;
+            text-align: center;
+            display: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        
+        /* Enhanced Arrow controls styling */
+        .arrow-controls {
+            display: flex;
+            gap: 20px;
+            pointer-events: none; /* Allow touch events to pass through to buttons */
+            position: fixed;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 1000;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+        
+        .arrow-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .arrow-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .arrow-button:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        
+        #exitButton {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+            text-decoration: none;
+        }
+        
+        #exitButton div {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        #exitButton div:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        #exitButton div:active {
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <div id="game-container">
+        <!-- Exit Button -->
+        <a href="https://williamos.netlify.app" target="_blank" id="exitButton">
+            <div>❌</div>
+        </a>
+        <div id="gameOver">
+            GAME OVER<br>
+            <span id="finalScore" style="font-size: 32px;"></span><br>
+            <button onclick="resetGame()" style="font-size: 24px; margin-top: 20px; padding: 10px 20px; background: #444; color: white; border: none; border-radius: 5px; cursor: pointer;">Play Again</button>
+        </div>
+    </div>
+    <div id="controls">Controls: Use arrow buttons or A (left) | D (right) | W (jump)</div>
+    <!-- Touch area for swipe controls -->
+    <div class="touch-area" id="touchArea"></div>
+    
+    <!-- Visual controls -->
+    <div class="arrow-controls">
+        <div class="arrow-button" id="left">←</div>
+        <div class="arrow-button" id="jump">↑</div>
+        <div class="arrow-button" id="right">→</div>
+    </div>
+    <audio id="gameAudio" src="song.mp3"></audio>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // Position camera at origin looking forward
+        camera.position.set(0, 0, 5);
+        camera.lookAt(0, 0, 0);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Game boundaries
+        const BOUNDS = {
+            x: 4,  // Left/right bounds
+            y: { top: 2, bottom: -2 }, // Up/down bounds
+            z: { front: 50, back: -20 } // Forward/back bounds
+        };
+
+        // Add starfield background (moving to create flying illusion)
+        function createStarfield() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starCount = 2000;
+            const positions = new Float32Array(starCount * 3);
+            
+            for (let i = 0; i < starCount; i++) {
+                const i3 = i * 3;
+                // Create stars in a more visible range
+                positions[i3] = (Math.random() - 0.5) * 200;  // X position
+                positions[i3 + 1] = (Math.random() - 0.5) * 200;  // Y position
+                positions[i3 + 2] = Math.random() * 500 - 100;  // Z position (closer to camera)
+            }
+            
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const starsMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 2.0,  // Smaller size for dot-like stars
+                sizeAttenuation: false,  // Disable attenuation for fixed size
+                transparent: true,
+                opacity: 0.8
+            });
+            const starField = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(starField);
+            return starField;
+        }
+        
+        const starField = createStarfield();
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        // Player (spaceship)
+        function createPlayer() {
+            const geometry = new THREE.ConeGeometry(0.5, 1, 8);
+            geometry.rotateX(Math.PI / 2); // Point the cone forward
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x00ff00,
+                emissive: 0x004400,
+                specular: 0xffffff,
+                shininess: 30
+            });
+            const player = new THREE.Mesh(geometry, material);
+            player.position.set(0, 0, 0); // Player is at center
+            return player;
+        }
+        
+        const player = createPlayer();
+        scene.add(player);
+
+        // Game variables
+        const blocks = [];
+        let score = 0;
+        let gameOver = false;
+        let speed = 0.1;
+        let jumpPower = 0.3;  // Reduced jump power for slower movement
+        let verticalVelocity = 0;
+        let isOnGround = true;  // Track if player is on ground
+        const gravity = -0.01;  // Very low gravity for slow falling
+
+        // Controls
+        const keyState = {};
+        const audio = document.getElementById('gameAudio');
+        
+        // Add click handler to play audio
+        window.addEventListener('click', () => {
+            audio.play().catch(error => {
+                console.log('Audio playback failed:', error);
+            });
+        });
+        
+        // Add keyboard event listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') {
+                keyState['a'] = true;
+            } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                keyState['d'] = true;
+            } else if (e.key === 'ArrowUp' || e.key === 'w') {
+                keyState['w'] = true;
+                if (isOnGround) {
+                    verticalVelocity = jumpPower;
+                    isOnGround = false;
+                }
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') {
+                keyState['a'] = false;
+            } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                keyState['d'] = false;
+            } else if (e.key === 'ArrowUp' || e.key === 'w') {
+                keyState['w'] = false;
+            }
+        });
+        
+        // Arrow button handlers
+        let touchState = {};
+        
+        function moveLeft(isTouching) {
+            touchState['a'] = isTouching;
+            keyState['a'] = isTouching;
+        }
+        
+        function moveRight(isTouching) {
+            touchState['d'] = isTouching;
+            keyState['d'] = isTouching;
+        }
+        
+        function jump(isTouching) {
+            touchState['w'] = isTouching;
+            keyState['w'] = isTouching;
+        }
+        
+        // Touch control variables
+        let touchInterval;
+        let activeButton = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isTouchMoving = false;
+        
+        function startTouchAction(button) {
+            if (activeButton === button) return;
+            
+            // Clear any existing interval
+            if (touchInterval) {
+                clearInterval(touchInterval);
+            }
+            
+            activeButton = button;
+            
+            // Initial press with haptic feedback
+            triggerHapticFeedback();
+            
+            // Visual feedback
+            button.style.transform = 'scale(0.95)';
+            button.style.background = 'rgba(255, 255, 255, 0.3)';
+            
+            // Initial action
+            if (button.textContent === '←') moveLeft(true);
+            else if (button.textContent === '→') moveRight(true);
+            else if (button.textContent === '↑') jump(true);
+            
+            // Set up repeating action
+            touchInterval = setInterval(() => {
+                if (button.textContent === '←') moveLeft(true);
+                else if (button.textContent === '→') moveRight(true);
+                else if (button.textContent === '↑') jump(true);
+            }, 100); // Repeat every 100ms while holding
+        }
+        
+        function endTouchAction() {
+            if (touchInterval) {
+                clearInterval(touchInterval);
+                touchInterval = null;
+            }
+            
+            if (activeButton) {
+                // Reset visual feedback
+                activeButton.style.transform = '';
+                activeButton.style.background = '';
+                
+                if (activeButton.textContent === '←') moveLeft(false);
+                else if (activeButton.textContent === '→') moveRight(false);
+                activeButton = null; // Reset active button
+            }
+        }
+        
+        // Add event listeners to all arrow buttons
+        document.querySelectorAll('.arrow-button').forEach(button => {
+            // Touch start
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startTouchAction(button);
+            });
+            
+            // Touch end (when finger is lifted)
+            button.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                endTouchAction();
+            });
+            
+            // Handle touch cancel (when touch moves outside button)
+            button.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                endTouchAction();
+            });
+        });
+        
+        // Handle swipe controls
+        const touchArea = document.getElementById('touchArea');
+        touchArea.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isTouchMoving = false;
+        });
+        
+        touchArea.addEventListener('touchmove', (e) => {
+            if (!touchStartX || !touchStartY) return;
+            
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const diffX = touchStartX - touchX;
+            const diffY = touchStartY - touchY;
+            
+            // Only consider it a swipe if moved more than 10px
+            if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+                isTouchMoving = true;
+                
+                // Horizontal movement
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    if (diffX > 0) {
+                        // Swipe left
+                        moveLeft(true);
+                        moveRight(false);
+                    } else {
+                        // Swipe right
+                        moveRight(true);
+                        moveLeft(false);
+                    }
+                } else {
+                    // Vertical movement - jump
+                    if (diffY > 0) {
+                        jump(true);
+                    }
+                }
+            }
+        });
+        
+        touchArea.addEventListener('touchend', (e) => {
+            if (!isTouchMoving) {
+                // If it was a tap, jump
+                jump(true);
+                setTimeout(() => jump(false), 100);
+            } else {
+                // Reset movement
+                moveLeft(false);
+                moveRight(false);
+                jump(false);
+            }
+            touchStartX = 0;
+            touchStartY = 0;
+            isTouchMoving = false;
+        });
+        
+        // Also end touch action if touch moves outside the window
+        window.addEventListener('touchend', endTouchAction);
+        window.addEventListener('touchcancel', endTouchAction);
+        
+        // Add haptic feedback if available
+        function triggerHapticFeedback() {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(10); // 10ms vibration
+            }
+        }
+        
+        // Start audio if not playing
+        if (audio && audio.paused) {
+            audio.play().catch(error => {
+                console.log('Audio playback failed:', error);
+            });
+        }
+        
+        // Update audio to loop
+        audio.loop = true;
+        
+        window.addEventListener('keydown', (e) => {
+            keyState[e.key.toLowerCase()] = true;
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keyState[e.key.toLowerCase()] = false;
+        });
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Create an obstacle (red asteroid)
+        function createObstacle() {
+            const size = 0.5 + Math.random() * 0.5;
+            const geometry = new THREE.SphereGeometry(size, 8, 8);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0xff3300,
+                emissive: 0x441100,
+                specular: 0x111111,
+                shininess: 5
+            });
+            const obstacle = new THREE.Mesh(geometry, material);
+            
+            // Position behind player (negative Z)
+            obstacle.position.x = Math.random() * BOUNDS.x * 2 - BOUNDS.x;
+            obstacle.position.y = Math.random() * (BOUNDS.y.top - BOUNDS.y.bottom) + BOUNDS.y.bottom;
+            obstacle.position.z = -20 - Math.random() * 30; // Start behind
+            
+            // Add rotation animation
+            obstacle.userData = {
+                rotationSpeed: {
+                    x: Math.random() * 0.02 - 0.01,
+                    y: Math.random() * 0.02 - 0.01,
+                    z: Math.random() * 0.02 - 0.01
+                }
+            };
+            
+            scene.add(obstacle);
+            blocks.push(obstacle);
+        }
+
+        // Check collision
+        function checkCollision() {
+            for (let i = 0; i < blocks.length; i++) {
+                const block = blocks[i];
+                const distance = player.position.distanceTo(block.position);
+                if (distance < 1.5) {
+                    endGame();
+                    return;
+                }
+            }
+        }
+
+        // Keep player within bounds
+        function checkBounds() {
+            // X-axis bounds
+            if (player.position.x < -BOUNDS.x) player.position.x = -BOUNDS.x;
+            if (player.position.x > BOUNDS.x) player.position.x = BOUNDS.x;
+            
+            // Y-axis bounds and ground detection
+            if (player.position.y < BOUNDS.y.bottom) {
+                player.position.y = BOUNDS.y.bottom;
+                verticalVelocity = 0;
+                isOnGround = true;  // Player is on ground
+            }
+            if (player.position.y > BOUNDS.y.top) {
+                player.position.y = BOUNDS.y.top;
+                verticalVelocity = 0;
+            }
+        }
+
+        // End game
+        function endGame() {
+            gameOver = true;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = `Score: ${score}`;
+        }
+
+        // Reset game
+        function resetGame() {
+            // Remove all blocks
+            for (let i = 0; i < blocks.length; i++) {
+                scene.remove(blocks[i]);
+            }
+            blocks.length = 0;
+            
+            // Reset player
+            player.position.set(0, 0, 0);
+            player.rotation.set(0, 0, 0);
+            
+            // Reset game variables
+            score = 0;
+            gameOver = false;
+            verticalVelocity = 0;
+            isJumping = false;
+            speed = 0.1;
+            
+            // Update UI
+            document.getElementById('score').textContent = `Score: ${score}`;
+            document.getElementById('gameOver').style.display = 'none';
+        }
+
+        // Game timing variables
+        const TPS = 60; // Target ticks per second
+        const TICK_INTERVAL = 1000 / TPS;
+        let lastTime = 0;
+        let accumulatedTime = 0;
+        let lastFrameTime = 0;
+        
+        // Animation loop with TPS limiter
+        function animate(currentTime = 0) {
+            requestAnimationFrame(animate);
+            
+            // Calculate delta time
+            if (!lastFrameTime) lastFrameTime = currentTime;
+            const deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
+            
+            // Cap the maximum delta time to prevent spiral of death
+            const maxDelta = 1000; // 1 second max
+            const clampedDelta = Math.min(deltaTime, maxDelta);
+            
+            // Accumulate time for fixed timestep
+            accumulatedTime += clampedDelta;
+            
+            // Process fixed timesteps
+            while (accumulatedTime >= TICK_INTERVAL) {
+                if (!gameOver) {
+                    updateGame(TICK_INTERVAL);
+                }
+                accumulatedTime -= TICK_INTERVAL;
+            }
+            
+            // Always render, regardless of update
+            renderer.render(scene, camera);
+        }
+        
+        // Game update logic (runs at fixed TPS)
+        function updateGame(deltaTime) {
+            // Convert deltaTime to seconds and scale by TPS
+            const timeScale = deltaTime / (1000 / TPS);
+            
+            // Player movement with bounds checking
+            if (keyState['a']) player.position.x -= speed * timeScale;
+            if (keyState['d']) player.position.x += speed * timeScale;
+            
+            // Apply gravity with time scaling
+            verticalVelocity += gravity * timeScale;
+            player.position.y += verticalVelocity * timeScale;
+            
+            // Check boundaries
+            checkBounds();
+            
+            // Spawn obstacles randomly (time-scaled)
+            if (Math.random() < 0.02 * timeScale) {
+                createObstacle();
+            }
+            
+            // Move obstacles in the opposite direction (positive Z - away from player)
+            for (let i = blocks.length - 1; i >= 0; i--) {
+                const block = blocks[i];
+                block.position.z += speed * 2 * timeScale; // Move away from camera
+                
+                // Rotate block
+                if (block.userData.rotationSpeed) {
+                    block.rotation.x += block.userData.rotationSpeed.x * timeScale;
+                    block.rotation.y += block.userData.rotationSpeed.y * timeScale;
+                    block.rotation.z += block.userData.rotationSpeed.z * timeScale;
+                }
+                
+                // Remove obstacles that passed too far ahead
+                if (block.position.z > 50) {
+                    scene.remove(block);
+                    blocks.splice(i, 1);
+                    score++;
+                    document.getElementById('score').textContent = `Score: ${score}`;
+                    
+                    // Increase difficulty
+                    if (score % 5 === 0) {
+                        speed += 0.01;
+                    }
+                }
+            }
+            
+            // Move starfield to create flying illusion (time-scaled)
+            starField.position.z -= speed * 0.5 * timeScale;
+            if (starField.position.z < -1000) {
+                starField.position.z = 0;
+            }
+            
+            // Check for collisions
+            checkCollision();
+            
+            // Tilt player when moving
+            const tiltSpeed = 0.1 * timeScale * TPS / 60; // Normalize tilt speed
+            if (keyState['a']) {
+                player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, Math.PI / 12, tiltSpeed);
+            } else if (keyState['d']) {
+                player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, -Math.PI / 12, tiltSpeed);
+            } else {
+                player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, 0, tiltSpeed);
+            }
+        }
+        
+        // Start the game loop
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

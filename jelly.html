@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jelly Jump</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            overflow: hidden;
+            font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+        }
+        
+        #gameCanvas {
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.7), 
+                        0 0 100px rgba(106, 90, 205, 0.3);
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            transition: box-shadow 0.3s ease;
+        }
+        
+        #gameCanvas:hover {
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.8), 
+                        0 0 120px rgba(106, 90, 205, 0.4);
+        }
+        
+        #scoreDisplay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7),
+                         0 0 10px rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 25px;
+            border-radius: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4),
+                        inset 0 2px 5px rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        #scoreDisplay:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.5),
+                        inset 0 2px 5px rgba(255, 255, 255, 0.15);
+        }
+        
+        #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        #startButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 20px;
+            background: #ff69b4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #startButton:hover {
+            background: #ff1493;
+        }
+
+        .touch-control {
+            position: fixed;
+            bottom: 20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255, 105, 180, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        .touch-control:hover {
+            background: rgba(255, 105, 180, 0.5);
+        }
+
+        .touch-control:active {
+            background: rgba(255, 105, 180, 0.7);
+        }
+
+        #leftControl {
+            left: 20px;
+        }
+
+        #rightControl {
+            right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="scoreDisplay">Score: 0</div>
+    <div id="controls">
+        <div class="touch-control" id="leftControl"></div>
+        <div class="touch-control" id="rightControl"></div>
+        <!-- Exit Button -->
+        <div class="touch-control" id="exitControl" style="bottom: 20px; left: 20px;">
+            <a href="https://williamos.netlify.app" target="_blank" style="color: white; text-decoration: none;">
+                ❌
+            </a>
+        </div>
+    </div>
+    <div id="startScreen">
+        <h1>Jelly Jump</h1>
+        <p>Use arrow keys or tap sides of screen to move</p>
+        <p>Jump from platform to platform!</p>
+        <button id="startButton">Start Game</button>
+    </div>
+    <audio id="bgMusic" loop>
+        <source src="jelly.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // Game variables
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const startButton = document.getElementById('startButton');
+        
+        // Background image
+        const background = new Image();
+        background.src = 'bubble.png';
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const bgMusic = document.getElementById('bgMusic');
+        
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Game state
+        let gameRunning = false;
+        let score = 0;
+        let platforms = [];
+        let particles = []; // Add particles array
+        let jelly = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            width: 60,
+            height: 60,
+            velocityX: 0,
+            velocityY: 0,
+            color: '#ff69b4',
+            isGrounded: false,
+            isJumping: false,
+            isSquashed: false,
+            squashTimer: 0
+        };
+        
+        // Movement variables
+        let moveLeft = false;
+        let moveRight = false;
+        
+        // Touch controls
+        const leftControl = document.getElementById('leftControl');
+        const rightControl = document.getElementById('rightControl');
+        
+        leftControl.addEventListener('touchstart', () => moveLeft = true);
+        leftControl.addEventListener('touchend', () => moveLeft = false);
+        rightControl.addEventListener('touchstart', () => moveRight = true);
+        rightControl.addEventListener('touchend', () => moveRight = false);
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft = true;
+            if (e.key === 'ArrowRight') moveRight = true;
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft = false;
+            if (e.key === 'ArrowRight') moveRight = false;
+        });
+        
+        // Mouse controls for desktop (optional)
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.clientX < canvas.width / 2) {
+                moveLeft = true;
+            } else {
+                moveRight = true;
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            moveLeft = false;
+            moveRight = false;
+        });
+        
+        // Start game
+        startButton.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            gameRunning = true;
+            score = 0;
+            scoreDisplay.textContent = 'Score: 0';
+            
+            // Initialize platforms even closer together
+            platforms = [];
+            const platformSpacing = canvas.height / 5; // Closer platforms
+            for (let i = 0; i < 8; i++) { // More platforms
+                platforms.push(createPlatform(i * platformSpacing));
+            }
+            
+            // Position jelly on first platform
+            jelly.x = platforms[0].x + platforms[0].width / 2;
+            jelly.y = platforms[0].y - jelly.height;
+            jelly.velocityX = 0;
+            jelly.velocityY = 0;
+            jelly.isGrounded = false;
+            jelly.isJumping = false;
+            jelly.isSquashed = false;
+            jelly.squashTimer = 0;
+            
+            // Play music
+            bgMusic.play().catch(e => console.log("Audio play failed:", e));
+            
+            // Start game loop
+            requestAnimationFrame(gameLoop);
+        });
+        
+        // Create a platform with collision checking
+        function createPlatform(yPos) {
+            // Generate initial platform position and size
+            let x = Math.random() * (canvas.width - 150);
+            let width = 150 + Math.random() * 100;
+            
+            // Check for collisions with existing platforms
+            let tries = 0;
+            const maxTries = 10; // Maximum number of attempts to find a valid position
+            
+            while (tries < maxTries) {
+                let collision = false;
+                platforms.forEach(platform => {
+                    // Check if new platform would be too close to existing one
+                    const distanceX = Math.abs(x - platform.x);
+                    const minDistance = 150; // Minimum distance between platforms
+                    
+                    if (distanceX < minDistance) {
+                        collision = true;
+                        return;
+                    }
+                });
+                
+                if (!collision) break;
+                
+                // Try a new position if collision was detected
+                x = Math.random() * (canvas.width - 150);
+                tries++;
+            }
+            
+            return {
+                x: x,
+                y: yPos,
+                width: width,
+                height: 20,
+                color: '#70c1ff'
+            };
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            // Clear canvas and draw background
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background image
+            if (background.complete) {
+                // Calculate dimensions to maintain aspect ratio
+                const imgRatio = background.width / background.height;
+                const canvasRatio = canvas.width / canvas.height;
+                let drawWidth, drawHeight, offsetX, offsetY;
+
+                if (canvasRatio > imgRatio) {
+                    // Canvas is wider than image
+                    drawHeight = canvas.height;
+                    drawWidth = drawHeight * imgRatio;
+                    offsetX = (canvas.width - drawWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    // Canvas is taller than image
+                    drawWidth = canvas.width;
+                    drawHeight = drawWidth / imgRatio;
+                    offsetX = 0;
+                    offsetY = (canvas.height - drawHeight) / 2;
+                }
+
+                // Draw the background image centered and scaled to fit
+                ctx.drawImage(background, offsetX, offsetY, drawWidth, drawHeight);
+            } else {
+                // Fallback background color
+                ctx.fillStyle = '#222';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            // Update jelly position
+            if (moveLeft) jelly.velocityX = -5;
+            else if (moveRight) jelly.velocityX = 5;
+            else jelly.velocityX *= 0.9; // Slow down when no key pressed
+            
+            jelly.x += jelly.velocityX;
+            jelly.y += jelly.velocityY;
+            
+            // Apply gravity (extremely reduced for super floaty feel)
+            jelly.velocityY += 0.05; // Very low gravity for maximum float
+            
+            // Check ground collision - restart game
+            if (jelly.y + jelly.height > canvas.height) {
+                gameOver();
+                return;
+            }
+            
+            // Check boundaries
+            if (jelly.x < 0) jelly.x = 0;
+            if (jelly.x > canvas.width - jelly.width) jelly.x = canvas.width - jelly.width;
+            
+            // Check if jelly falls off the bottom - restart game
+            if (jelly.y > canvas.height) {
+                gameOver();
+            }
+            
+            // Check platform collisions
+            let onPlatform = false;
+            platforms.forEach(platform => {
+                if (
+                    jelly.x + jelly.width > platform.x &&
+                    jelly.x < platform.x + platform.width &&
+                    jelly.y + jelly.height > platform.y &&
+                    jelly.y + jelly.height < platform.y + platform.height + 10 &&
+                    jelly.velocityY > 0
+                ) {
+                    // Land on platform with slower jump
+                    jelly.y = platform.y - jelly.height;
+                    jelly.velocityY = -8; // Even slower jump speed
+                    jelly.isJumping = true;
+                    onPlatform = true;
+                    
+                    // Squash effect
+                    jelly.isSquashed = true;
+                    jelly.squashTimer = 10;
+                }
+            });
+            
+            if (!onPlatform) {
+                jelly.isJumping = true;
+            }
+            
+            // Update squash effect
+            if (jelly.isSquashed) {
+                jelly.squashTimer--;
+                if (jelly.squashTimer <= 0) {
+                    jelly.isSquashed = false;
+                }
+            }
+            
+            // Move platforms down as jelly goes up
+            if (jelly.y < canvas.height / 3 && jelly.velocityY < 0) {
+                const diff = canvas.height / 3 - jelly.y;
+                jelly.y = canvas.height / 3;
+                
+                platforms.forEach(platform => {
+                    platform.y += diff;
+                    
+                    // Replace platforms that go off screen
+                    if (platform.y > canvas.height) {
+                        platform.y = -20;
+                        platform.x = Math.random() * (canvas.width - 150);
+                        platform.width = 150 + Math.random() * 100;
+                        
+                        // Increase score
+                        score++;
+                        scoreDisplay.textContent = 'Score: ' + score;
+                    }
+                });
+            }
+            
+            // Draw platforms
+            platforms.forEach(platform => {
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Add some details to platforms
+                ctx.strokeStyle = '#4d94db';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+            });
+            
+            // Update particles
+            particles.forEach((particle, index) => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vy += 0.2;
+                particle.alpha -= 0.02;
+                
+                if (particle.alpha <= 0) {
+                    particles.splice(index, 1);
+                    return;
+                }
+                
+                ctx.globalAlpha = particle.alpha;
+                ctx.fillStyle = particle.color;
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+            
+            // Draw jelly with squash effect
+            ctx.fillStyle = jelly.color;
+            
+            if (jelly.isSquashed) {
+                // Squashed jelly
+                ctx.beginPath();
+                ctx.ellipse(
+                    jelly.x + jelly.width / 2, 
+                    jelly.y + jelly.height / 2, 
+                    jelly.width / 2 + 10, 
+                    jelly.height / 2 - 10, 
+                    0, 0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Add some squish lines
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(jelly.x + 10, jelly.y + jelly.height / 2);
+                ctx.lineTo(jelly.x + jelly.width - 10, jelly.y + jelly.height / 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(jelly.x + jelly.width / 2, jelly.y + 10, 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(jelly.x + jelly.width / 2 + 15, jelly.y + 10, 5, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Normal jelly
+                ctx.beginPath();
+                ctx.ellipse(
+                    jelly.x + jelly.width / 2, 
+                    jelly.y + jelly.height / 2, 
+                    jelly.width / 2, 
+                    jelly.height / 2, 
+                    0, 0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Add eyes
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(jelly.x + jelly.width / 3, jelly.y + jelly.height / 3, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(jelly.x + jelly.width * 2/3, jelly.y + jelly.height / 3, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Add highlights
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.arc(jelly.x + jelly.width / 3, jelly.y + jelly.height / 4, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            startScreen.style.display = 'flex';
+            startButton.textContent = 'Play Again';
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+        }
+        
+        // Handle window resize
+        // Set canvas size to maintain aspect ratio and fit within viewport
+        const aspectRatio = 800 / 600; // Original aspect ratio
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Calculate dimensions while maintaining aspect ratio
+        let width = windowWidth * 1.5; // Make it 1.5x bigger
+        let height = width / aspectRatio;
+        
+        // Ensure it doesn't exceed screen size
+        if (height > windowHeight * 1.5) {
+            height = windowHeight * 1.5;
+            width = height * aspectRatio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Center the canvas
+        canvas.style.position = 'absolute';
+        canvas.style.left = '50%';
+        canvas.style.top = '50%';
+        canvas.style.transform = 'translate(-50%, -50%)';
+        
+        // Position elements relative to canvas
+        const scale = width / 800; // Scale factor based on original width
+        
+        scoreDisplay.style.position = 'absolute';
+        scoreDisplay.style.left = (20 * scale) + 'px';
+        scoreDisplay.style.top = (20 * scale) + 'px';
+        
+        leftControl.style.position = 'absolute';
+        leftControl.style.left = (20 * scale) + 'px';
+        leftControl.style.bottom = (20 * scale) + 'px';
+        
+        rightControl.style.position = 'absolute';
+        rightControl.style.right = (20 * scale) + 'px';
+        rightControl.style.bottom = (20 * scale) + 'px';
+        
+        exitControl.style.position = 'absolute';
+        exitControl.style.left = (20 * scale) + 'px';
+        exitControl.style.bottom = (20 * scale) + 'px';
+    </script>
+</body>
+</html>

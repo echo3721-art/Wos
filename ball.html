@@ -1,0 +1,178 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ball-in-Cube with Hole</title>
+<style>
+  body { background:#000; margin:0; display:flex; justify-content:center; align-items:center; height:100vh; }
+  canvas { background:#000; display:block; }
+  .panel {
+    position:fixed; top:20px; left:20px;
+    background:#111; color:#fff; padding:12px; border-radius:8px;
+    font-family:sans-serif; font-size:14px;
+  }
+  input[type="range"]{ width:100%; }
+  button{margin-top:8px; width:100%; padding:6px; border:none; border-radius:6px; background:#0a6a7a; color:#fff; cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="stage" width="640" height="480"></canvas>
+
+<div class="panel">
+  <label>Hole Position % <span id="holePosLabel">50</span></label>
+  <input id="holePos" type="range" min="0" max="100" value="50">
+  <label>Hole Width % <span id="holeWidthLabel">20</span></label>
+  <input id="holeWidth" type="range" min="5" max="80" value="20">
+  <label>Speed x <span id="speedLabel">1.0</span></label>
+  <input id="speedRange" type="range" min="0.2" max="5" step="0.1" value="1">
+  <button id="exportBtn">Export MP4</button>
+</div>
+
+<script>
+const canvas=document.getElementById("stage");
+const ctx=canvas.getContext("2d");
+
+const holePos=document.getElementById("holePos");
+const holeWidth=document.getElementById("holeWidth");
+const holePosLabel=document.getElementById("holePosLabel");
+const holeWidthLabel=document.getElementById("holeWidthLabel");
+const speedRange=document.getElementById("speedRange");
+const speedLabel=document.getElementById("speedLabel");
+const exportBtn=document.getElementById("exportBtn");
+
+holePos.oninput=()=>holePosLabel.textContent=holePos.value;
+holeWidth.oninput=()=>holeWidthLabel.textContent=holeWidth.value;
+speedRange.oninput=()=>{speedFactor=parseFloat(speedRange.value);speedLabel.textContent=speedFactor;};
+
+const box={x:40,y:40,w:560,h:400};
+let balls=[makeBall()];
+let running=true;
+let lastTime=performance.now();
+let speedFactor=1;
+
+function rand(min,max){return Math.random()*(max-min)+min;}
+function makeBall(){
+  let r=rand(10,15);
+  let x=rand(box.x+r,box.x+box.w-r);
+  let y=rand(box.y+r,box.y+box.h-r);
+  let ang=Math.random()*Math.PI*2;
+  let sp=rand(100,200);
+  return {x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,r,color:`hsl(${Math.random()*360},100%,60%)`};
+}
+
+function checkEscape(b){
+  let hc=parseFloat(holePos.value)/100;
+  let hw=parseFloat(holeWidth.value)/100*box.w;
+  let cx=box.x+box.w*hc;
+  let left=cx-hw/2,right=cx+hw/2;
+  return (b.y-b.r>box.y+box.h)&&(b.x>left&&b.x<right);
+}
+
+function step(dt){
+  dt*=speedFactor;
+  let newBalls = [];
+  for(let i=balls.length-1;i>=0;i--){
+    let b=balls[i];
+    b.x+=b.vx*dt/1000;
+    b.y+=b.vy*dt/1000;
+
+    const jitter=()=> (Math.random()-0.5)*50;
+
+    // escape check first
+    if(checkEscape(b)){
+      balls.splice(i,1);
+      newBalls.push(makeBall(),makeBall()); // always add 2
+      continue;
+    }
+
+    // bounces
+    if(b.x-b.r<box.x){
+      b.x=box.x+b.r;
+      b.vx=Math.abs(b.vx)+jitter();
+    }
+    if(b.x+b.r>box.x+box.w){
+      b.x=box.x+box.w-b.r;
+      b.vx=-Math.abs(b.vx)+jitter();
+    }
+    if(b.y-b.r<box.y){
+      b.y=box.y+b.r;
+      b.vy=Math.abs(b.vy)+jitter();
+    }
+    if(b.y+b.r>box.y+box.h){
+      let hc=parseFloat(holePos.value)/100;
+      let hw=parseFloat(holeWidth.value)/100*box.w;
+      let cx=box.x+box.w*hc;
+      let left=cx-hw/2,right=cx+hw/2;
+      if(!(b.x>left&&b.x<right)){
+        b.y=box.y+box.h-b.r;
+        b.vy=-Math.abs(b.vy)+jitter();
+      }
+    }
+  }
+  balls.push(...newBalls); // add all new balls
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // box
+  ctx.strokeStyle="#fff";
+  ctx.lineWidth=3;
+  ctx.strokeRect(box.x,box.y,box.w,box.h);
+  // hole
+  let hc=parseFloat(holePos.value)/100;
+  let hw=parseFloat(holeWidth.value)/100*box.w;
+  let cx=box.x+box.w*hc;
+  let left=cx-hw/2,right=cx+hw/2;
+  ctx.strokeStyle="red";ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(left,box.y+box.h);
+  ctx.lineTo(right,box.y+box.h);
+  ctx.stroke();
+  // balls
+  for(let b of balls){
+    ctx.save();
+    ctx.shadowColor=b.color;
+    ctx.shadowBlur=20;
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    ctx.fillStyle=b.color;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function loop(now){
+  if(running){step(now-lastTime);}
+  draw();
+  lastTime=now;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// export button
+let recorder, recordedChunks=[];
+exportBtn.onclick=()=>{
+  if(!recorder){
+    recordedChunks=[];
+    let stream=canvas.captureStream(60);
+    recorder=new MediaRecorder(stream,{mimeType:"video/webm"});
+    recorder.ondataavailable=e=>{if(e.data.size>0)recordedChunks.push(e.data);};
+    recorder.onstop=()=>{
+      let blob=new Blob(recordedChunks,{type:"video/webm"});
+      let url=URL.createObjectURL(blob);
+      let a=document.createElement("a");
+      a.href=url;
+      a.download="simulation.mp4";
+      a.click();
+      recorder=null;
+    };
+    recorder.start();
+    exportBtn.textContent="Stop & Save";
+  }else{
+    recorder.stop();
+    exportBtn.textContent="Export MP4";
+  }
+};
+</script>
+</body>
+</html>

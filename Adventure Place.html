@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Adventure Place Launcher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f0f8ff;
+        }
+        .launch-btn {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .launch-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Adventure Place</h1>
+    <p>Click the button below to launch Adventure Place</p>
+    <a href="https://avendur.netlify.app/" class="launch-btn" id="launchBtn">Launch Adventure Place</a>
+    
+    <script>
+        // Auto-click the launch button after a short delay
+        window.onload = function() {
+            setTimeout(function() {
+                document.getElementById('launchBtn').click();
+            }, 500);
+        };
+    </script>
+</body>
+</html>
