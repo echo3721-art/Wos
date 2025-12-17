@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Space Zombie Hunter</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ff00;
+            font-size: 20px;
+            z-index: 100;
+            text-shadow: 0 0 15px #00ff00;
+            font-weight: bold;
+        }
+        
+        #settingsButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 101;
+            border-radius: 5px;
+            text-shadow: 0 0 10px #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+        
+        #settingsPanel {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 15px;
+            width: 250px;
+            z-index: 101;
+            border-radius: 5px;
+            display: none;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+        
+        .settingItem {
+            margin-bottom: 15px;
+        }
+        
+        .settingItem label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .settingItem input[type="range"] {
+            width: 100%;
+            background: #003300;
+            height: 10px;
+            -webkit-appearance: none;
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        .settingItem input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00ff00;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        #mobileControls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: none;
+        }
+        
+        .mobileButton {
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #00ff00;
+            border-radius: 50%;
+            color: #00ff00;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+        
+        /* Joystick styles */
+        #joystickContainer {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid #00ff00;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            touch-action: none;
+        }
+        
+        #joystickKnob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 255, 0, 0.3);
+            border: 2px solid #00ff00;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+        }
+        
+        /* Camera control visual indicator - follows touch position */
+        .camera-control-indicator {
+            position: fixed;
+            top: 50%;
+            right: 25%;
+            transform: translate(50%, -50%);
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(0, 255, 0, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 95;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+        
+        .camera-control-indicator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: rgba(0, 255, 0, 0.3);
+            border-radius: 50%;
+        }
+        
+        .camera-control-indicator.active {
+            opacity: 0.4;
+        }
+        
+        #shootButton {
+            position: absolute;
+            bottom: 50px;
+            right: 50px;
+            width: 80px;
+            height: 80px;
+            font-size: 16px;
+            padding: 5px;
+            text-align: center;
+            z-index: 101;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 3px solid #ff0000;
+            border-radius: 50%;
+            z-index: 99;
+            pointer-events: none;
+            box-shadow: 0 0 20px #ff0000;
+        }
+        
+        #crosshair::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff0000;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #00ffff;
+            font-size: 16px;
+            z-index: 100;
+            text-shadow: 0 0 10px #00ffff;
+            line-height: 1.5;
+        }
+        
+        #gameOver, #victory {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            text-shadow: 0 0 30px;
+            font-weight: bold;
+        }
+        
+        #gameOver {
+            color: #ff0000;
+            text-shadow: 0 0 30px #ff0000;
+        }
+        
+        #victory {
+            color: #00ff00;
+            text-shadow: 0 0 30px #00ff00;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #healthBar {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            border: 2px solid #00ff00;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+        
+        #healthFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        #ammoBar {
+            position: absolute;
+            top: 110px;
+            left: 20px;
+            width: 150px;
+            height: 15px;
+            border: 2px solid #ffff00;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+        
+        #ammoFill {
+            height: 100%;
+            background: #ffff00;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 8px #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <button id="settingsButton">⚙️ Settings</button>
+        <div id="settingsPanel">
+            <div class="settingItem">
+                <label for="sensitivitySlider">Mouse Sensitivity</label>
+                <input type="range" id="sensitivitySlider" min="1" max="10" value="5">
+            </div>
+            <div class="settingItem">
+                <label for="volumeSlider">Volume</label>
+                <input type="range" id="volumeSlider" min="0" max="10" value="3">
+            </div>
+            <div class="settingItem">
+                <label for="difficultySlider">Difficulty</label>
+                <input type="range" id="difficultySlider" min="1" max="5" value="2">
+            </div>
+            <div class="settingItem">
+                <label for="mobileControlsToggle">Mobile Controls</label>
+                <input type="checkbox" id="mobileControlsToggle">
+            </div>
+        </div>
+        
+        <div id="mobileControls">
+            <div id="joystickContainer">
+                <div id="joystickKnob"></div>
+            </div>
+            <div class="camera-control-indicator"></div>
+            <div id="shootButton" class="mobileButton">FIRE</div>
+        </div>
+        <div id="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Crystals: <span id="crystals">0</span> / 15000</div>
+            <div>Zombies Killed: <span id="zombies">0</span></div>
+        </div>
+        
+        <div id="healthBar">
+            <div id="healthFill" style="width: 100%;"></div>
+        </div>
+        
+        <div id="ammoBar">
+            <div id="ammoFill" style="width: 100%;"></div>
+        </div>
+        
+        <div id="crosshair"></div>
+        
+        <div id="instructions">
+            WASD/Arrow Keys: Move | Mouse: Look Around | Click/Space: Shoot<br>
+            Collect 15,000 crystals to WIN! Kill zombies for bonus points!<br>
+            Watch your health and ammo - survive the zombie apocalypse!
+        </div>
+        
+        <div id="gameOver">
+            <div>GAME OVER</div>
+            <div class="subtitle">The zombies got you!</div>
+            <div class="subtitle" style="font-size: 16px;">Press R to restart</div>
+        </div>
+        
+        <div id="victory">
+            <div>VICTORY!</div>
+            <div class="subtitle">You collected 1,500 crystals!</div>
+            <div class="subtitle" style="font-size: 16px;">Press R to play again</div>
+        </div>
+        
+        <audio id="bgMusic" loop>
+            <source src="space.mp3" type="audio/mpeg">
+        </audio>
+    </div>
+    <audio id="bgm" src="space.mp3" loop></audio>
+
+<script>
+  window.onload = function () {
+    const bgm = document.getElementById("bgm");
+    bgm.volume = 0.7; // Set volume to 70%
+    bgm.play().catch(e => {
+      console.log("Autoplay blocked. User interaction needed.");
+    });
+  };
+</script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        class SpaceZombieHunter {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(0x000011);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.getElementById('gameContainer').appendChild(this.renderer.domElement);
+
+                // Game state
+                this.score = 0;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.crystalsCollected = 0;
+                this.zombiesKilled = 0;
+                this.ammo = 100;
+                this.maxAmmo = 100;
+                this.gameActive = true;
+                this.gameWon = false;
+                
+                // Settings
+                this.sensitivity = 0.002;
+                this.volume = 0.3;
+                this.difficulty = 2;
+                this.isMobile = false;
+                this.worldSize = 250; // Much bigger game world
+                
+                // Touch control tracking
+                this.cameraTouch = null;
+                this.movementJoystick = { active: false, identifier: null, origin: { x: 0, y: 0 }, position: { x: 0, y: 0 } };
+                
+                // Player movement with smooth physics
+                this.velocity = new THREE.Vector3();
+                this.acceleration = new THREE.Vector3();
+                this.keys = {
+                    w: false, a: false, s: false, d: false,
+                    up: false, down: false, left: false, right: false
+                };
+                
+                // Mouse controls with smooth movement
+                this.mouse = { x: 0, y: 0 };
+                this.pitch = 0;
+                this.yaw = 0;
+                this.targetPitch = 0;
+                this.targetYaw = 0;
+                
+                // Game objects
+                this.asteroids = [];
+                this.crystals = [];
+                this.zombies = [];
+                this.bullets = [];
+                this.particles = [];
+                
+                // Timing
+                this.lastShot = 0;
+                this.shootCooldown = 150;
+                
+                this.init();
+                this.setupControls();
+                this.startMusic();
+                this.gameLoop();
+            }
+            
+            init() {
+                // Setup camera
+                this.camera.position.set(0, 0, 8);
+                
+                // Create beautiful starfield with more stars
+                this.createStarfield();
+                
+                // Add advanced lighting
+                const ambientLight = new THREE.AmbientLight(0x222244, 0.4);
+                this.scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0x8888ff, 1);
+                directionalLight.position.set(10, 10, 10);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                this.scene.add(directionalLight);
+                
+                // Add point lights for drama
+                const pointLight1 = new THREE.PointLight(0xff4444, 0.5, 50);
+                pointLight1.position.set(20, 20, 20);
+                this.scene.add(pointLight1);
+                
+                const pointLight2 = new THREE.PointLight(0x4444ff, 0.5, 50);
+                pointLight2.position.set(-20, -20, -20);
+                this.scene.add(pointLight2);
+                
+                // Create initial game objects
+                this.spawnAsteroids();
+                this.spawnCrystals();
+                this.spawnZombies();
+            }
+            
+            createStarfield() {
+                // Create multiple layers of stars for depth
+                for (let layer = 0; layer < 4; layer++) {
+                    const starGeometry = new THREE.BufferGeometry();
+                    const starCount = 1500 - layer * 250;
+                    const positions = new Float32Array(starCount * 3);
+                    const colors = new Float32Array(starCount * 3);
+                    
+                    for (let i = 0; i < starCount * 3; i += 3) {
+                        positions[i] = (Math.random() - 0.5) * 800;
+                        positions[i + 1] = (Math.random() - 0.5) * 800;
+                        positions[i + 2] = (Math.random() - 0.5) * 800;
+                        
+                        // Colorful stars
+                        const color = new THREE.Color();
+                        color.setHSL(Math.random(), 0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.5);
+                        colors[i] = color.r;
+                        colors[i + 1] = color.g;
+                        colors[i + 2] = color.b;
+                    }
+                    
+                    starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    
+                    const starMaterial = new THREE.PointsMaterial({ 
+                        size: 0.5 + layer * 0.3,
+                        vertexColors: true,
+                        transparent: true,
+                        opacity: 0.8 + layer * 0.1
+                    });
+                    
+                    const stars = new THREE.Points(starGeometry, starMaterial);
+                    this.scene.add(stars);
+                }
+            }
+            
+            spawnAsteroids() {
+                for (let i = 0; i < 70; i++) {
+                    const geometry = new THREE.IcosahedronGeometry(Math.random() * 3 + 1, 1);
+                    const material = new THREE.MeshPhongMaterial({ 
+                        color: new THREE.Color().setHSL(0, 0.8, 0.3 + Math.random() * 0.3),
+                        shininess: 30
+                    });
+                    const asteroid = new THREE.Mesh(geometry, material);
+                    asteroid.castShadow = true;
+                    
+                    asteroid.position.set(
+                        (Math.random() - 0.5) * this.worldSize * 1.2,
+                        (Math.random() - 0.5) * this.worldSize * 1.2,
+                        (Math.random() - 0.5) * this.worldSize * 1.2
+                    );
+                    
+                    asteroid.userData = {
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.03,
+                            (Math.random() - 0.5) * 0.03,
+                            (Math.random() - 0.5) * 0.03
+                        ),
+                        rotationSpeed: new THREE.Vector3(
+                            Math.random() * 0.02,
+                            Math.random() * 0.02,
+                            Math.random() * 0.02
+                        )
+                    };
+                    
+                    this.asteroids.push(asteroid);
+                    this.scene.add(asteroid);
+                }
+            }
+            
+            spawnCrystals() {
+                for (let i = 0; i < 80; i++) {
+                    const geometry = new THREE.OctahedronGeometry(1, 1);
+                    const material = new THREE.MeshPhongMaterial({ 
+                        color: 0x4488ff,
+                        transparent: true, 
+                        opacity: 0.9,
+                        emissive: 0x002244,
+                        shininess: 100
+                    });
+                    const crystal = new THREE.Mesh(geometry, material);
+                    crystal.castShadow = true;
+                    
+                    crystal.position.set(
+                        (Math.random() - 0.5) * this.worldSize,
+                        (Math.random() - 0.5) * this.worldSize,
+                        (Math.random() - 0.5) * this.worldSize
+                    );
+                    
+                    crystal.userData = {
+                        rotationSpeed: 0.03 + Math.random() * 0.02,
+                        bobOffset: Math.random() * Math.PI * 2,
+                        originalY: crystal.position.y,
+                        glowPhase: Math.random() * Math.PI * 2
+                    };
+                    
+                    this.crystals.push(crystal);
+                    this.scene.add(crystal);
+                }
+            }
+            
+            spawnZombies() {
+                for (let i = 0; i < 40; i++) {
+                    // Create zombie body using cylinder
+                    const bodyGeometry = new THREE.CylinderGeometry(0.8, 0.6, 2.5, 8);
+                    const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0x336633,
+                        emissive: 0x003300
+                    });
+                    const zombie = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                    zombie.castShadow = true;
+                    
+                    // Add glowing eyes
+                    const eyeGeometry = new THREE.SphereGeometry(0.1);
+                    const eyeMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xff0000,
+                        emissive: 0xff0000
+                    });
+                    
+                    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                    leftEye.position.set(-0.3, 0.8, 0.7);
+                    zombie.add(leftEye);
+                    
+                    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                    rightEye.position.set(0.3, 0.8, 0.7);
+                    zombie.add(rightEye);
+                    
+                    zombie.position.set(
+                        (Math.random() - 0.5) * this.worldSize * 0.8,
+                        (Math.random() - 0.5) * this.worldSize * 0.8,
+                        (Math.random() - 0.5) * this.worldSize * 0.8
+                    );
+                    
+                    zombie.userData = {
+                        health: 3,
+                        speed: 0.08 + Math.random() * 0.04,
+                        detectionRange: 25,  // Increased from 20
+                        attackRange: 4,      // Increased from 3
+                        lastAttack: 0,
+                        attackCooldown: 2000,
+                        wanderTarget: new THREE.Vector3(
+                            zombie.position.x + (Math.random() - 0.5) * 20,
+                            zombie.position.y + (Math.random() - 0.5) * 20,
+                            zombie.position.z + (Math.random() - 0.5) * 20
+                        ),
+                        wanderTime: Date.now() + Math.random() * 5000
+                    };
+                    
+                    this.zombies.push(zombie);
+                    this.scene.add(zombie);
+                }
+            }
+            
+            startMusic() {
+                const music = document.getElementById('bgMusic');
+                music.volume = this.volume;
+                music.play().catch(e => {
+                    // Auto-play might be blocked, play on first interaction
+                    document.addEventListener('click', () => {
+                        music.play();
+                    }, { once: true });
+                });
+            }
+            
+            setupControls() {
+                // Settings panel controls
+                const settingsButton = document.getElementById('settingsButton');
+                const settingsPanel = document.getElementById('settingsPanel');
+                
+                // Initialize settings panel display property
+                settingsPanel.style.display = 'none';
+                
+                settingsButton.addEventListener('click', (e) => {
+                    e.preventDefault(); // Prevent any default behavior
+                    if (settingsPanel.style.display === 'block') {
+                        settingsPanel.style.display = 'none';
+                    } else {
+                        settingsPanel.style.display = 'block';
+                    }
+                });
+                
+                // Sensitivity slider
+                const sensitivitySlider = document.getElementById('sensitivitySlider');
+                // Set initial value
+                sensitivitySlider.value = '5';
+                sensitivitySlider.addEventListener('input', () => {
+                    this.sensitivity = 0.0005 + (sensitivitySlider.value * 0.0003);
+                    console.log('Sensitivity set to:', this.sensitivity);
+                });
+                
+                // Volume slider
+                const volumeSlider = document.getElementById('volumeSlider');
+                // Set initial value
+                volumeSlider.value = '3';
+                this.volume = 0.3; // Initial volume
+                volumeSlider.addEventListener('input', () => {
+                    this.volume = volumeSlider.value / 10;
+                    const bgMusic = document.getElementById('bgMusic');
+                    if (bgMusic) {
+                        bgMusic.volume = this.volume;
+                        console.log('Volume set to:', this.volume);
+                    }
+                    // Also set the other audio element
+                    const bgm = document.getElementById('bgm');
+                    if (bgm) {
+                        bgm.volume = this.volume;
+                    }
+                });
+                
+                // Difficulty slider
+                const difficultySlider = document.getElementById('difficultySlider');
+                // Set initial value
+                difficultySlider.value = '2';
+                difficultySlider.addEventListener('input', () => {
+                    this.difficulty = parseInt(difficultySlider.value);
+                    console.log('Difficulty set to:', this.difficulty);
+                });
+                
+                // Mobile controls toggle
+                const mobileControlsToggle = document.getElementById('mobileControlsToggle');
+                const mobileControls = document.getElementById('mobileControls');
+                
+                // Initialize mobile controls display
+                mobileControls.style.display = 'none';
+                
+                mobileControlsToggle.addEventListener('change', () => {
+                    this.isMobile = mobileControlsToggle.checked;
+                    mobileControls.style.display = this.isMobile ? 'block' : 'none';
+                    console.log('Mobile controls:', this.isMobile ? 'enabled' : 'disabled');
+                });
+                
+                // Check if device is mobile
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    mobileControlsToggle.checked = true;
+                    this.isMobile = true;
+                    mobileControls.style.display = 'block';
+                }
+                
+                // Mobile joystick setup
+                const joystickContainer = document.getElementById('joystickContainer');
+                const joystickKnob = document.getElementById('joystickKnob');
+                const shootButton = document.getElementById('shootButton');
+                
+                // Joystick variables for movement control
+                this.movementJoystick = {
+                    active: false,
+                    identifier: null,
+                    origin: { x: 0, y: 0 },
+                    position: { x: 0, y: 0 }
+                };
+                
+                // Setup joystick events with multi-touch support
+                joystickContainer.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    
+                    // Only process if we don't already have an active touch for this joystick
+                    if (!this.movementJoystick.active) {
+                        const touch = e.touches[0];
+                        const rect = joystickContainer.getBoundingClientRect();
+                        
+                        this.movementJoystick.active = true;
+                        this.movementJoystick.identifier = touch.identifier;
+                        this.movementJoystick.origin.x = rect.left + rect.width / 2;
+                        this.movementJoystick.origin.y = rect.top + rect.height / 2;
+                        
+                        updateJoystickPosition(touch.clientX, touch.clientY);
+                    }
+                });
+                
+                // Use document-level touch events to handle multi-touch properly
+                document.addEventListener('touchmove', (e) => {
+                    if (!this.movementJoystick.active) return;
+                    
+                    // Find our movement joystick touch
+                    for (let i = 0; i < e.touches.length; i++) {
+                        const touch = e.touches[i];
+                        if (touch.identifier === this.movementJoystick.identifier) {
+                            e.preventDefault();
+                            updateJoystickPosition(touch.clientX, touch.clientY);
+                            break;
+                        }
+                    }
+                }, { passive: false });
+                
+                document.addEventListener('touchend', (e) => {
+                    if (!this.movementJoystick.active) return;
+                    
+                    // Check if our movement joystick touch has ended
+                    let touchFound = false;
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].identifier === this.movementJoystick.identifier) {
+                            touchFound = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!touchFound) {
+                        // Reset movement joystick
+                        this.movementJoystick.active = false;
+                        joystickKnob.style.transform = 'translate(-50%, -50%)';
+                        this.keys.w = false;
+                        this.keys.s = false;
+                        this.keys.a = false;
+                        this.keys.d = false;
+                    }
+                });
+                
+                document.addEventListener('touchcancel', (e) => {
+                    if (this.movementJoystick.active) {
+                        // Reset movement joystick
+                        this.movementJoystick.active = false;
+                        joystickKnob.style.transform = 'translate(-50%, -50%)';
+                        this.keys.w = false;
+                        this.keys.s = false;
+                        this.keys.a = false;
+                        this.keys.d = false;
+                    }
+                });
+                
+                const updateJoystickPosition = (clientX, clientY) => {
+                    const deltaX = clientX - this.movementJoystick.origin.x;
+                    const deltaY = clientY - this.movementJoystick.origin.y;
+                    
+                    // Calculate distance from center
+                    const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), 40);
+                    const angle = Math.atan2(deltaY, deltaX);
+                    
+                    // Calculate new position
+                    this.movementJoystick.position.x = distance * Math.cos(angle);
+                    this.movementJoystick.position.y = distance * Math.sin(angle);
+                    
+                    // Update joystick knob position
+                    joystickKnob.style.transform = `translate(calc(-50% + ${this.movementJoystick.position.x}px), calc(-50% + ${this.movementJoystick.position.y}px))`;
+                    
+                    // Convert joystick position to movement keys
+                    this.keys.w = this.movementJoystick.position.y < -10;
+                    this.keys.s = this.movementJoystick.position.y > 10;
+                    this.keys.a = this.movementJoystick.position.x < -10;
+                    this.keys.d = this.movementJoystick.position.x > 10;
+                };
+                
+                // Camera control with invisible joystick that follows your touch
+                // This is separate from the movement joystick for simultaneous control
+                document.addEventListener('touchstart', (e) => {
+                    if (!this.isMobile || !this.gameActive) return;
+                    
+                    // Only process touches on the right half of the screen
+                    // And only if we don't already have an active camera touch
+                    if (!this.cameraTouch || !this.cameraTouch.active) {
+                        for (let i = 0; i < e.touches.length; i++) {
+                            const touch = e.touches[i];
+                            
+                            // Make sure this touch is on the right side and isn't already being used for movement
+                            if (touch.clientX > window.innerWidth / 2 && 
+                                (!this.movementJoystick.active || touch.identifier !== this.movementJoystick.identifier)) {
+                                
+                                // This is a touch on the right side for camera control
+                                this.cameraTouch = {
+                                    identifier: touch.identifier,
+                                    startX: touch.clientX,
+                                    startY: touch.clientY,
+                                    lastX: touch.clientX,
+                                    lastY: touch.clientY,
+                                    currentX: touch.clientX,
+                                    currentY: touch.clientY,
+                                    active: true
+                                };
+                                
+                                // Show and position the indicator at touch start position
+                                const indicator = document.querySelector('.camera-control-indicator');
+                                if (indicator) {
+                                    indicator.style.top = `${touch.clientY}px`;
+                                    indicator.style.right = `${window.innerWidth - touch.clientX}px`;
+                                    indicator.style.transform = 'translate(50%, -50%)';
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }, { passive: false });
+                
+                document.addEventListener('touchmove', (e) => {
+                    if (!this.isMobile || !this.gameActive || !this.cameraTouch || !this.cameraTouch.active) return;
+                    
+                    // Find the touch that matches our stored identifier
+                    for (let i = 0; i < e.touches.length; i++) {
+                        const touch = e.touches[i];
+                        if (touch.identifier === this.cameraTouch.identifier) {
+                            // Update current position
+                            this.cameraTouch.currentX = touch.clientX;
+                            this.cameraTouch.currentY = touch.clientY;
+                            
+                            // Calculate movement from last position (for camera rotation)
+                            const movementX = touch.clientX - this.cameraTouch.lastX;
+                            const movementY = touch.clientY - this.cameraTouch.lastY;
+                            
+                            // Apply camera rotation based on movement
+                            this.targetYaw -= movementX * 0.005;
+                            this.targetPitch -= movementY * 0.005;
+                            
+                            // Limit vertical look
+                            this.targetPitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.targetPitch));
+                            
+                            // Update last position for next movement calculation
+                            this.cameraTouch.lastX = touch.clientX;
+                            this.cameraTouch.lastY = touch.clientY;
+                            
+                            // Move the visual indicator to follow the touch
+                            const indicator = document.querySelector('.camera-control-indicator');
+                            if (indicator) {
+                                indicator.style.top = `${touch.clientY}px`;
+                                indicator.style.right = `${window.innerWidth - touch.clientX}px`;
+                            }
+                            
+                            // Prevent default to avoid scrolling
+                            e.preventDefault();
+                            break;
+                        }
+                    }
+                }, { passive: false });
+                
+                document.addEventListener('touchend', (e) => {
+                    if (!this.cameraTouch) return;
+                    
+                    // Check if our tracked touch has ended
+                    let touchFound = false;
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].identifier === this.cameraTouch.identifier) {
+                            touchFound = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!touchFound) {
+                        // Our touch has ended
+                        this.cameraTouch.active = false;
+                        
+                        // Reset indicator position
+                        const indicator = document.querySelector('.camera-control-indicator');
+                        if (indicator) {
+                            indicator.style.top = '50%';
+                            indicator.style.right = '25%';
+                            indicator.style.transform = 'translate(50%, -50%)';
+                        }
+                    }
+                }, { passive: true });
+                
+                document.addEventListener('touchcancel', (e) => {
+                    if (this.cameraTouch) {
+                        this.cameraTouch.active = false;
+                        
+                        // Reset indicator position
+                        const indicator = document.querySelector('.camera-control-indicator');
+                        if (indicator) {
+                            indicator.style.top = '50%';
+                            indicator.style.right = '25%';
+                            indicator.style.transform = 'translate(50%, -50%)';
+                        }
+                    }
+                }, { passive: true });
+                
+                // Initialize camera touch tracking
+                this.cameraTouch = null;
+                
+                // Shoot button
+                shootButton.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.shoot();
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (!this.gameActive && event.key.toLowerCase() === 'r') {
+                        this.restart();
+                        return;
+                    }
+                    
+                    switch(event.key.toLowerCase()) {
+                        case 'w': case 'arrowup': this.keys.w = true; break;
+                        case 's': case 'arrowdown': this.keys.s = true; break;
+                        case 'a': case 'arrowleft': this.keys.a = true; break;
+                        case 'd': case 'arrowright': this.keys.d = true; break;
+                        case ' ':
+                            event.preventDefault();
+                            this.shoot();
+                            break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (event) => {
+                    switch(event.key.toLowerCase()) {
+                        case 'w': case 'arrowup': this.keys.w = false; break;
+                        case 's': case 'arrowdown': this.keys.s = false; break;
+                        case 'a': case 'arrowleft': this.keys.a = false; break;
+                        case 'd': case 'arrowright': this.keys.d = false; break;
+                    }
+                });
+                
+                // Smooth mouse controls
+                document.addEventListener('mousemove', (event) => {
+                    if (!this.gameActive || this.isMobile) return;
+                    
+                    this.targetYaw -= event.movementX * this.sensitivity;
+                    this.targetPitch -= event.movementY * this.sensitivity;
+                    this.targetPitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.targetPitch));
+                });
+                
+                document.addEventListener('click', (event) => {
+                    if (this.gameActive) {
+                        this.shoot();
+                    }
+                });
+                
+                // Lock pointer for better control
+                document.addEventListener('click', () => {
+                    if (this.gameActive) {
+                        document.body.requestPointerLock();
+                    }
+                });
+                
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+            
+            update() {
+                if (!this.gameActive) return;
+                
+                this.updateMovement();
+                this.updateCamera();
+                this.updateGameObjects();
+                this.updateBullets();
+                this.updateParticles();
+                this.checkCollisions();
+                this.updateUI();
+                
+                // Check win condition
+                if (this.crystalsCollected >= 1500 && !this.gameWon) {
+                    this.victory();
+                }
+            }
+            
+            updateMovement() {
+                // Smooth physics-based movement
+                const speed = 0.3;
+                const friction = 0.9;
+                
+                this.acceleration.set(0, 0, 0);
+                
+                if (this.keys.w) this.acceleration.z -= speed;
+                if (this.keys.s) this.acceleration.z += speed;
+                if (this.keys.a) this.acceleration.x -= speed;
+                if (this.keys.d) this.acceleration.x += speed;
+                
+                // Apply camera rotation to movement
+                this.acceleration.applyQuaternion(this.camera.quaternion);
+                
+                // Update velocity with acceleration and friction
+                this.velocity.add(this.acceleration);
+                this.velocity.multiplyScalar(friction);
+                
+                // Apply velocity to camera position
+                this.camera.position.add(this.velocity);
+            }
+            
+            updateCamera() {
+                // Smooth camera rotation
+                const lerpFactor = 0.1;
+                this.yaw += (this.targetYaw - this.yaw) * lerpFactor;
+                this.pitch += (this.targetPitch - this.pitch) * lerpFactor;
+                
+                this.camera.rotation.order = 'YXZ';
+                this.camera.rotation.y = this.yaw;
+                this.camera.rotation.x = this.pitch;
+                
+                // Update camera control indicator if touch is active
+                const indicator = document.querySelector('.camera-control-indicator');
+                if (indicator) {
+                    if (this.cameraTouch && this.cameraTouch.active) {
+                        indicator.classList.add('active');
+                    } else {
+                        indicator.classList.remove('active');
+                    }
+                }
+            }
+            
+            updateGameObjects() {
+                // Update asteroids with smooth rotation
+                this.asteroids.forEach(asteroid => {
+                    asteroid.position.add(asteroid.userData.velocity);
+                    asteroid.rotation.x += asteroid.userData.rotationSpeed.x;
+                    asteroid.rotation.y += asteroid.userData.rotationSpeed.y;
+                    asteroid.rotation.z += asteroid.userData.rotationSpeed.z;
+                    
+                    // Wrap around world
+                    if (asteroid.position.length() > this.worldSize) {
+                        asteroid.position.multiplyScalar(-0.8);
+                    }
+                });
+                
+                // Update crystals with beautiful effects
+                this.crystals.forEach((crystal, index) => {
+                    crystal.rotation.y += crystal.userData.rotationSpeed;
+                    crystal.rotation.x += crystal.userData.rotationSpeed * 0.5;
+                    
+                    // Smooth bobbing motion
+                    crystal.position.y = crystal.userData.originalY + 
+                        Math.sin(Date.now() * 0.003 + crystal.userData.bobOffset) * 1.5;
+                    
+                    // Glowing effect
+                    const glowIntensity = 0.5 + Math.sin(Date.now() * 0.005 + crystal.userData.glowPhase) * 0.3;
+                    crystal.material.emissive.setScalar(glowIntensity * 0.1);
+                    
+                    // Check collection
+                    if (crystal.position.distanceTo(this.camera.position) < 2.5) {
+                        this.collectCrystal(index);
+                    }
+                });
+                
+                // Update zombies with advanced AI
+                this.zombies.forEach(zombie => {
+                    const distanceToPlayer = zombie.position.distanceTo(this.camera.position);
+                    const currentTime = Date.now();
+                    
+                    if (distanceToPlayer < zombie.userData.detectionRange) {
+                        // Chase player
+                        const direction = this.camera.position.clone().sub(zombie.position).normalize();
+                        zombie.position.add(direction.multiplyScalar(zombie.userData.speed));
+                        zombie.lookAt(this.camera.position);
+                        
+                        // Attack if close enough
+                        if (distanceToPlayer < zombie.userData.attackRange && 
+                            currentTime - zombie.userData.lastAttack > zombie.userData.attackCooldown) {
+                            this.zombieAttack(zombie);
+                            zombie.userData.lastAttack = currentTime;
+                        }
+                    } else {
+                        // Wander behavior
+                        if (currentTime > zombie.userData.wanderTime) {
+                            zombie.userData.wanderTarget = new THREE.Vector3(
+                                zombie.position.x + (Math.random() - 0.5) * 30,
+                                zombie.position.y + (Math.random() - 0.5) * 30,
+                                zombie.position.z + (Math.random() - 0.5) * 30
+                            );
+                            zombie.userData.wanderTime = currentTime + 3000 + Math.random() * 4000;
+                        }
+                        
+                        const wanderDirection = zombie.userData.wanderTarget.clone().sub(zombie.position).normalize();
+                        zombie.position.add(wanderDirection.multiplyScalar(zombie.userData.speed * 0.3));
+                        zombie.lookAt(zombie.userData.wanderTarget);
+                    }
+                    
+                    // Add subtle floating animation
+                    zombie.position.y += Math.sin(currentTime * 0.001 + zombie.position.x) * 0.01;
+                });
+            }
+            
+            updateBullets() {
+                this.bullets.forEach((bullet, index) => {
+                    bullet.position.add(bullet.userData.velocity);
+                    bullet.userData.life--;
+                    
+                    // Add trail effect
+                    bullet.rotation.x += 0.1;
+                    bullet.rotation.y += 0.1;
+                    
+                    if (bullet.userData.life <= 0) {
+                        this.scene.remove(bullet);
+                        this.bullets.splice(index, 1);
+                        return;
+                    }
+                    
+                    this.checkBulletCollisions(bullet, index);
+                });
+            }
+            
+            updateParticles() {
+                this.particles.forEach((particle, index) => {
+                    particle.userData.life--;
+                    particle.position.add(particle.userData.velocity);
+                    particle.userData.velocity.multiplyScalar(0.98); // Slow down
+                    
+                    // Fade out
+                    if (particle.material.opacity) {
+                        particle.material.opacity *= 0.95;
+                    }
+                    
+                    if (particle.userData.life <= 0) {
+                        this.scene.remove(particle);
+                        this.particles.splice(index, 1);
+                    }
+                });
+            }
+            
+            checkBulletCollisions(bullet, bulletIndex) {
+                // Check zombie collisions
+                this.zombies.forEach((zombie, zombieIndex) => {
+                    if (bullet.position.distanceTo(zombie.position) < 2) {
+                        zombie.userData.health--;
+                        this.scene.remove(bullet);
+                        this.bullets.splice(bulletIndex, 1);
+                        
+                        // Hit effect
+                        this.createHitEffect(zombie.position);
+                        
+                        if (zombie.userData.health <= 0) {
+                            this.scene.remove(zombie);
+                            this.zombies.splice(zombieIndex, 1);
+                            this.zombiesKilled++;
+                            this.crystalsCollected += 34; // Give 34 crystals for killing a zombie
+                            this.score += 500;
+                            this.createExplosionEffect(zombie.position, 0x00ff00);
+                            
+                            // Spawn new zombie
+                            setTimeout(() => this.spawnSingleZombie(), 5000);
+                        }
+                        return;
+                    }
+                });
+                
+                // Check asteroid collisions
+                this.asteroids.forEach((asteroid) => {
+                    if (bullet.position.distanceTo(asteroid.position) < 2) {
+                        this.scene.remove(bullet);
+                        this.bullets.splice(bulletIndex, 1);
+                        this.createSparkEffect(asteroid.position);
+                        return;
+                    }
+                });
+            }
+            
+            checkCollisions() {
+                // Player-asteroid collisions
+                this.asteroids.forEach(asteroid => {
+                    if (asteroid.position.distanceTo(this.camera.position) < 3) {
+                        this.takeDamage(5);
+                        // Push away
+                        const direction = this.camera.position.clone().sub(asteroid.position).normalize();
+                        this.camera.position.add(direction.multiplyScalar(2));
+                    }
+                });
+            }
+            
+            collectCrystal(index) {
+                const crystal = this.crystals[index];
+                this.scene.remove(crystal);
+                this.crystals.splice(index, 1);
+                
+                const crystalValue = Math.floor(Math.random() * 75) + 50; // 50-125 crystals
+                this.crystalsCollected += crystalValue;
+                this.score += crystalValue * 2;
+                
+                this.createCollectionEffect(crystal.position);
+                this.spawnNewCrystal();
+            }
+            
+            spawnNewCrystal() {
+                const geometry = new THREE.OctahedronGeometry(1, 1);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0x4488ff,
+                    transparent: true, 
+                    opacity: 0.9,
+                    emissive: 0x002244,
+                    shininess: 100
+                });
+                const crystal = new THREE.Mesh(geometry, material);
+                crystal.castShadow = true;
+                
+                crystal.position.set(
+                    (Math.random() - 0.5) * this.worldSize,
+                    (Math.random() - 0.5) * this.worldSize,
+                    (Math.random() - 0.5) * this.worldSize
+                );
+                
+                crystal.userData = {
+                    rotationSpeed: 0.03 + Math.random() * 0.02,
+                    bobOffset: Math.random() * Math.PI * 2,
+                    originalY: crystal.position.y,
+                    glowPhase: Math.random() * Math.PI * 2
+                };
+                
+                this.crystals.push(crystal);
+                this.scene.add(crystal);
+            }
+            
+            spawnSingleZombie() {
+                const bodyGeometry = new THREE.CylinderGeometry(0.8, 0.6, 2.5, 8);
+                const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x336633,
+                    emissive: 0x003300
+                });
+                const zombie = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                zombie.castShadow = true;
+                
+                // Add glowing eyes
+                const eyeGeometry = new THREE.SphereGeometry(0.1);
+                const eyeMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0xff0000,
+                    emissive: 0xff0000
+                });
+                
+                const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                leftEye.position.set(-0.3, 0.8, 0.7);
+                zombie.add(leftEye);
+                
+                const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                rightEye.position.set(0.3, 0.8, 0.7);
+                zombie.add(rightEye);
+                
+                // Spawn away from player
+                const spawnDistance = 70 + Math.random() * 40;
+                const angle = Math.random() * Math.PI * 2;
+                zombie.position.set(
+                    this.camera.position.x + Math.cos(angle) * spawnDistance,
+                    this.camera.position.y + (Math.random() - 0.5) * 30,
+                    this.camera.position.z + Math.sin(angle) * spawnDistance
+                );
+                
+                zombie.userData = {
+                    health: 2 + this.difficulty,
+                    speed: 0.06 + Math.random() * 0.04 + (this.difficulty * 0.01),
+                    detectionRange: 15 + (this.difficulty * 3),
+                    attackRange: 2 + (this.difficulty * 0.5),
+                    lastAttack: 0,
+                    attackCooldown: 2500 - (this.difficulty * 300),
+                    wanderTarget: new THREE.Vector3(
+                        zombie.position.x + (Math.random() - 0.5) * 20,
+                        zombie.position.y + (Math.random() - 0.5) * 20,
+                        zombie.position.z + (Math.random() - 0.5) * 20
+                    ),
+                    wanderTime: Date.now() + Math.random() * 5000
+                };
+                
+                this.zombies.push(zombie);
+                this.scene.add(zombie);
+            }
+            
+            shoot() {
+                if (this.ammo <= 0 || Date.now() - this.lastShot < this.shootCooldown) return;
+                
+                this.ammo--;
+                this.lastShot = Date.now();
+                
+                // Create bullet with glow effect
+                const geometry = new THREE.SphereGeometry(0.15);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: 0xffff00,
+                    emissive: 0xffff00,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const bullet = new THREE.Mesh(geometry, material);
+                
+                bullet.position.copy(this.camera.position);
+                
+                const direction = new THREE.Vector3(0, 0, -1);
+                direction.applyQuaternion(this.camera.quaternion);
+                
+                bullet.userData = {
+                    velocity: direction.multiplyScalar(3),
+                    life: 120
+                };
+                
+                this.bullets.push(bullet);
+                this.scene.add(bullet);
+                
+                // Muzzle flash effect
+                this.createMuzzleFlash();
+                
+                // Auto-reload when empty
+                if (this.ammo === 0) {
+                    setTimeout(() => {
+                        this.ammo = this.maxAmmo;
+                    }, 2000);
+                }
+            }
+            
+            zombieAttack(zombie) {
+                this.takeDamage(10 + (this.difficulty * 2));
+                
+                // Attack visual effect
+                zombie.material.emissive.setHex(0xff0000);
+                setTimeout(() => {
+                    if (zombie.material) zombie.material.emissive.setHex(0x003300);
+                }, 300);
+                
+                // Screen flash effect
+                this.createScreenFlash();
+            }
+            
+            takeDamage(amount) {
+                this.health -= amount;
+                if (this.health <= 0) {
+                    this.health = 0;
+                    this.gameOver();
+                }
+            }
+            
+            createCollectionEffect(position) {
+                const particleCount = 20;
+                for (let i = 0; i < particleCount; i++) {
+                    const geometry = new THREE.SphereGeometry(0.1);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: 0x4488ff,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const particle = new THREE.Mesh(geometry, material);
+                    
+                    particle.position.copy(position);
+                    particle.userData = {
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.3,
+                            (Math.random() - 0.5) * 0.3,
+                            (Math.random() - 0.5) * 0.3
+                        ),
+                        life: 60
+                    };
+                    
+                    this.particles.push(particle);
+                    this.scene.add(particle);
+                }
+            }
+            
+            createExplosionEffect(position, color) {
+                const particleCount = 30;
+                for (let i = 0; i < particleCount; i++) {
+                    const geometry = new THREE.SphereGeometry(0.15);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: color,
+                        transparent: true,
+                        opacity: 1
+                    });
+                    const particle = new THREE.Mesh(geometry, material);
+                    
+                    particle.position.copy(position);
+                    particle.userData = {
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.5,
+                            (Math.random() - 0.5) * 0.5,
+                            (Math.random() - 0.5) * 0.5
+                        ),
+                        life: 80
+                    };
+                    
+                    this.particles.push(particle);
+                    this.scene.add(particle);
+                }
+            }
+            
+            createHitEffect(position) {
+                const particleCount = 10;
+                for (let i = 0; i < particleCount; i++) {
+                    const geometry = new THREE.SphereGeometry(0.05);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: 0xff4444,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    const particle = new THREE.Mesh(geometry, material);
+                    
+                    particle.position.copy(position);
+                    particle.userData = {
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.2,
+                            (Math.random() - 0.5) * 0.2,
+                            (Math.random() - 0.5) * 0.2
+                        ),
+                        life: 40
+                    };
+                    
+                    this.particles.push(particle);
+                    this.scene.add(particle);
+                }
+            }
+            
+            createSparkEffect(position) {
+                const particleCount = 15;
+                for (let i = 0; i < particleCount; i++) {
+                    const geometry = new THREE.SphereGeometry(0.03);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: 0xffaa00,
+                        transparent: true,
+                        opacity: 1
+                    });
+                    const particle = new THREE.Mesh(geometry, material);
+                    
+                    particle.position.copy(position);
+                    particle.userData = {
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.4,
+                            (Math.random() - 0.5) * 0.4,
+                            (Math.random() - 0.5) * 0.4
+                        ),
+                        life: 30
+                    };
+                    
+                    this.particles.push(particle);
+                    this.scene.add(particle);
+                }
+            }
+            
+            createMuzzleFlash() {
+                const geometry = new THREE.SphereGeometry(0.5);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: 0xffff00,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const flash = new THREE.Mesh(geometry, material);
+                
+                const flashPosition = this.camera.position.clone();
+                const forward = new THREE.Vector3(0, 0, -2);
+                forward.applyQuaternion(this.camera.quaternion);
+                flashPosition.add(forward);
+                
+                flash.position.copy(flashPosition);
+                this.scene.add(flash);
+                
+                setTimeout(() => {
+                    this.scene.remove(flash);
+                }, 100);
+            }
+            
+            createScreenFlash() {
+                const flash = document.createElement('div');
+                flash.style.position = 'fixed';
+                flash.style.top = '0';
+                flash.style.left = '0';
+                flash.style.width = '100vw';
+                flash.style.height = '100vh';
+                flash.style.background = 'rgba(255, 0, 0, 0.3)';
+                flash.style.pointerEvents = 'none';
+                flash.style.zIndex = '99';
+                document.body.appendChild(flash);
+                
+                setTimeout(() => {
+                    flash.remove();
+                }, 200);
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.score.toLocaleString();
+                document.getElementById('crystals').textContent = this.crystalsCollected.toLocaleString();
+                document.getElementById('zombies').textContent = this.zombiesKilled;
+                
+                // Update health bar
+                const healthPercent = (this.health / this.maxHealth) * 100;
+                document.getElementById('healthFill').style.width = healthPercent + '%';
+                
+                // Update ammo bar
+                const ammoPercent = (this.ammo / this.maxAmmo) * 100;
+                document.getElementById('ammoFill').style.width = ammoPercent + '%';
+            }
+            
+            victory() {
+                this.gameWon = true;
+                this.gameActive = false;
+                document.getElementById('victory').style.display = 'block';
+                
+                // Victory celebration effect
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        this.createExplosionEffect(
+                            new THREE.Vector3(
+                                this.camera.position.x + (Math.random() - 0.5) * 20,
+                                this.camera.position.y + (Math.random() - 0.5) * 20,
+                                this.camera.position.z + (Math.random() - 0.5) * 20
+                            ),
+                            new THREE.Color().setHSL(Math.random(), 1, 0.5)
+                        );
+                    }, i * 100);
+                }
+            }
+            
+            gameOver() {
+                this.gameActive = false;
+                document.getElementById('gameOver').style.display = 'block';
+            }
+            
+            restart() {
+                // Reset game state
+                this.score = 0;
+                this.health = this.maxHealth;
+                this.crystalsCollected = 0;
+                this.zombiesKilled = 0;
+                this.ammo = this.maxAmmo;
+                this.gameActive = true;
+                this.gameWon = false;
+                
+                // Reset camera
+                this.camera.position.set(0, 0, 8);
+                this.camera.rotation.set(0, 0, 0);
+                this.velocity.set(0, 0, 0);
+                this.yaw = 0;
+                this.pitch = 0;
+                this.targetYaw = 0;
+                this.targetPitch = 0;
+                
+                // Clear all objects
+                [...this.asteroids, ...this.crystals, ...this.zombies, ...this.bullets, ...this.particles].forEach(obj => {
+                    this.scene.remove(obj);
+                });
+                
+                this.asteroids = [];
+                this.crystals = [];
+                this.zombies = [];
+                this.bullets = [];
+                this.particles = [];
+                
+                // Respawn everything
+                this.spawnAsteroids();
+                this.spawnCrystals();
+                this.spawnZombies();
+                
+                // Hide game over/victory screens
+                document.getElementById('gameOver').style.display = 'none';
+                document.getElementById('victory').style.display = 'none';
+            }
+            
+            gameLoop() {
+                requestAnimationFrame(() => this.gameLoop());
+                this.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Start the epic game
+        const game = new SpaceZombieHunter();
+    </script>
+</body>
+</html>
