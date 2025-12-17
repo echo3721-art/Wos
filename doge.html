@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <audio id="bgMusic" loop>
+    <source src="doge.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dodge —风格回避游玩原型</title>
+<style>
+  :root{
+    --bg: #0fe8f0; /* cyan 背景，和你之前喜欢的色调 */
+    --panel: rgba(0,0,0,0.6);
+    --accent: #ffd166;
+    --ui-text: #ffffff;
+    --font: "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);font-family:var(--font);-webkit-font-smoothing:antialiased;}
+  .wrap{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .game-container{
+    width:900px; max-width:100%; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));
+    border-radius:12px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,0.25); position:relative;
+  }
+  header{display:flex; gap:12px; align-items:center; margin-bottom:8px;}
+  h1{color:#052; margin:0; font-size:18px; letter-spacing:0.5px;}
+  .controls{margin-left:auto; display:flex; gap:8px; align-items:center;}
+  button{background:var(--panel); color:var(--ui-text); border:1px solid rgba(255,255,255,0.06); padding:8px 12px; border-radius:8px; cursor:pointer;}
+  button:hover{filter:brightness(1.06)}
+  .hud{display:flex; gap:10px; align-items:center; color:var(--ui-text); font-weight:600;}
+  .canvas-wrap{background: #012; border-radius:8px; padding:12px; display:flex; justify-content:center;}
+  canvas{background: linear-gradient(#105, rgba(0,0,0,0.04)), repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 30px); border-radius:6px; display:block;}
+  .info{margin-top:10px; color:#033; font-size:13px;}
+  .overlay{
+    position:absolute; inset:14px; display:flex; align-items:center; justify-content:center; pointer-events:none;
+  }
+  .panel{
+    pointer-events:auto;
+    background:rgba(0,0,0,0.65);
+    color:white; padding:18px; border-radius:10px; text-align:center; min-width:260px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.4);
+  }
+  .hidden{display:none;}
+  .big{font-size:20px; font-weight:800; margin-bottom:8px;}
+  .small{font-size:13px; opacity:0.9}
+  .footer{
+    margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13px;
+  }
+  .meters{display:flex; gap:6px; align-items:center;}
+  .hp{width:140px; height:12px; background:rgba(255,255,255,0.12); border-radius:6px; overflow:hidden;}
+  .hp > i{display:block; height:100%; background:linear-gradient(90deg,#ff6b6b,#ffb86b); width:100%;}
+  .score{font-weight:900; color:#062;}
+  @media (max-width:520px){
+    .game-container{padding:10px;}
+    header{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="game-container" role="main">
+    <header>
+      <h1>Dodge — 回避练习（无剧情）</h1>
+      <div class="hud">
+        <div>生命 <span id="hp-text">100</span>%</div>
+        <div class="meters">
+          <div class="hp"><i id="hp-bar" style="width:100%"></i></div>
+        </div>
+        <div style="width:18px"></div>
+        <div>分数 <span id="score">0</span></div>
+      </div>
+      <div class="controls">
+        <button id="btn-music">音乐：开</button>
+        <button id="btn-pause">暂停</button>
+        <button id="btn-restart">重开</button>
+      </div>
+    </header>
+
+    <div class="canvas-wrap">
+      <canvas id="game" width="800" height="500"></canvas>
+    </div>
+
+    <div class="info">
+      控制：方向键 / WASD 移动，空格或点按屏幕可短暂闪避（短时无敌）。目标：尽可能长时间生存并刷高分！游戏随时间难度上升。
+    </div>
+
+    <div class="overlay">
+      <div id="start-panel" class="panel">
+        <div class="big">按任意键开始</div>
+        <div class="small">这是一个专注于「躲避弹幕」的小游戏。音乐会根据节奏产生障碍（可关）。</div>
+        <div style="margin-top:10px"><button id="start-btn">开始游戏</button></div>
+      </div>
+
+      <div id="gameover-panel" class="panel hidden">
+        <div class="big" id="gameover-title">你输了</div>
+        <div class="small" id="final-score">分数 0</div>
+        <div style="margin-top:12px">
+          <button id="restart-btn-2">再来一次</button>
+          <button id="to-menu" style="margin-left:8px">返回菜单</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/*
+  Dodge — HTML/JS prototype
+  - Player is a circle in the playfield center initially.
+  - Obstacles spawn from edges or in patterns, speed & density increase over time.
+  - Keyboard + touch support. Space / tap -> short dodge (invulnerable for a short window).
+  - Music generator creates beats; on each beat spawns a wave of bullets (optional).
+  - Clean, commented for you to tweak.
+*/
+
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // UI elements
+  const startPanel = document.getElementById('start-panel');
+  const startBtn = document.getElementById('start-btn');
+  const gameoverPanel = document.getElementById('gameover-panel');
+  const gameoverTitle = document.getElementById('gameover-title');
+  const finalScoreText = document.getElementById('final-score');
+  const restartBtn2 = document.getElementById('restart-btn-2');
+  const toMenuBtn = document.getElementById('to-menu');
+  const btnMusic = document.getElementById('btn-music');
+  const btnPause = document.getElementById('btn-pause');
+  const btnRestart = document.getElementById('btn-restart');
+
+  const hpText = document.getElementById('hp-text');
+  const hpBar = document.getElementById('hp-bar');
+  const scoreText = document.getElementById('score');
+
+  let running = false;
+  let paused = false;
+  let musicOn = true;
+
+  // Player
+  // Lightning trail effect
+  const lightningParticles = [];
+  const DASH_SPEED = 600; // Speed of the dash
+  const DASH_DURATION = 0.2; // Duration of the dash in seconds
+  const DASH_COOLDOWN = 1.0; // Reduced cooldown to 1 second
+  
+  // Healing leaf settings
+  const leaves = [];
+  let lastLeafSpawn = 0;
+  const LEAF_SPAWN_INTERVAL = 10; // seconds
+  const LEAF_RADIUS = 12;
+  const HEAL_AMOUNT = 20; // Health restored by each leaf
+  
+  const player = {
+    x: W/2, y: H/2, r: 14,
+    maxHp: 100,
+    hp: 100,
+    isInvincible: false,
+    invincibleTime: 0,
+    vx: 0, vy: 0,
+    speed: 240, // px/sec
+    hp: 100,
+    dodgeTime: 0, // remaining dodge invuln seconds
+    dashCooldown: 0, // remaining cooldown in seconds
+    isDashing: false,
+    dashDirection: { x: 0, y: 0 },
+    lastPositions: [] // For trail effect
+  };
+
+  // Input
+  const input = {left:false,right:false,up:false,down:false, dodge:false};
+
+  // Obstacles
+  const bullets = [];
+  const MAX_BULLETS = 30; // Maximum number of bullets allowed on screen (reduced from 50)
+
+  // Timing & difficulty
+  let lastTime = 0;
+  let elapsed = 0;
+  let spawnTimer = 0;
+  let spawnInterval = 1.0; // seconds, will shrink
+  let difficulty = 0; // increases over time
+  let score = 0;
+  let lastScoreUpdate = 0;
+
+  // Audio (simple)
+  let audioCtx = null;
+  let beatInterval = 0.5; // seconds; will scale with difficulty
+  let beatTimer = 0;
+
+  function startAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  function playBeep(time, freq = 200, dur = 0.08, vol = 0.08){
+    if(!audioCtx || !musicOn) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(time);
+    o.stop(time + dur);
+  }
+
+  // helper: spawn a bullet
+  function createLightningBolt(x1, y1, x2, y2, width = 2, color = '#9cf', segments = 10) {
+    const bolt = [];
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const x = x1 + dx * t;
+      const y = y1 + dy * t;
+      const offset = i === 0 || i === segments ? 0 : (Math.random() - 0.5) * 30 * (1 - Math.abs(t - 0.5) * 2);
+      const offsetX = Math.cos(Math.atan2(dy, dx) + Math.PI/2) * offset;
+      const offsetY = Math.sin(Math.atan2(dy, dx) + Math.PI/2) * offset;
+      
+      bolt.push({
+        x: x + offsetX,
+        y: y + offsetY,
+        alpha: 1,
+        life: 0.2 + Math.random() * 0.3
+      });
+    }
+    
+    return {
+      points: bolt,
+      width: width,
+      color: color,
+      life: 0.4
+    };
+  }
+
+  function spawnBullet(opts){
+    // opts: {x,y,tx,ty, speed, r, color, behavior}
+    const dx = (opts.tx - opts.x);
+    const dy = (opts.ty - opts.y);
+    const dist = Math.hypot(dx,dy) || 1;
+    const speed = opts.speed || 120;
+    const vx = (dx/dist)*speed;
+    const vy = (dy/dist)*speed;
+    bullets.push({
+      x: opts.x, y: opts.y, vx, vy,
+      r: opts.r || 7,
+      color: opts.color || '#fff',
+      life: opts.life || 10,
+      behavior: opts.behavior || null,
+      birth: elapsed,
+      damage: 10 // Damage dealt on hit
+    });
+  }
+
+  function spawnWaveFromEdges(count = 8, speed = 120){
+    for(let i=0;i<count;i++){
+      const side = Math.floor(Math.random()*4);
+      let x,y;
+      if(side===0){ x = -10; y = Math.random()*H; }
+      else if(side===1){ x = W+10; y = Math.random()*H; }
+      else if(side===2){ x = Math.random()*W; y = -10; }
+      else { x = Math.random()*W; y = H+10; }
+      // aim near player with slight spread offset
+      const tx = player.x + (Math.random()-0.5)*120;
+      const ty = player.y + (Math.random()-0.5)*120;
+      spawnBullet({x,y,tx,ty,speed, r:6+Math.random()*6, color: `hsl(${Math.random()*40},90%,70%)`});
+    }
+  }
+
+  // patterned spawn (circle burst around center)
+  function spawnCircleBurst(n = 12, speed = 160, cx = W/2, cy = H/2){
+    for(let i=0;i<n;i++){
+      const ang = (i / n) * Math.PI * 2;
+      const tx = cx + Math.cos(ang)*300;
+      const ty = cy + Math.sin(ang)*300;
+      spawnBullet({x:cx, y:cy, tx, ty, speed, r:6, color: '#ffd166'});
+    }
+  }
+
+  // collision check circle-circle
+  function circleCollide(a,b){
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    const r = (a.r || 0) + (b.r || 0);
+    return dx*dx + dy*dy <= r*r;
+  }
+
+  // reset
+  function resetGame(){
+    player.x = W/2; player.y = H/2; player.hp = 100; player.dodgeTime = 0;
+    bullets.length = 0;
+    elapsed = 0; spawnTimer = 0; spawnInterval = 1.0; difficulty = 0; score = 0; beatInterval = 0.6;
+    lastTime = performance.now();
+    lastScoreUpdate = 0;
+    updateUI();
+  }
+
+  // UI update
+  function updateUI(){
+    hpText.textContent = Math.max(0, Math.round(player.hp));
+    hpBar.style.width = Math.max(0, player.hp) + '%';
+    scoreText.textContent = Math.floor(score);
+  }
+
+  // Game over
+  function gameOver(){
+    running = false;
+    gameoverTitle.textContent = (player.hp <= 0 ? '你输了' : '结束');
+    finalScoreText.textContent = '分数 ' + Math.floor(score);
+    gameoverPanel.classList.remove('hidden');
+    startPanel.classList.add('hidden');
+  }
+
+  // Main loop
+  function loop(t){
+    if(!lastTime) lastTime = t;
+    const dt = Math.min(0.05, (t - lastTime)/1000);
+    lastTime = t;
+    if(running && !paused){
+      step(dt);
+      render();
+    } else {
+      render(); // still render (for pause overlay)
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function step(dt){
+    elapsed += dt;
+
+    // difficulty increases slowly
+    difficulty = Math.min(1.5, elapsed / 30);
+    spawnInterval = 0.9 - difficulty * 0.55; // from 0.9 to ~0.25
+    beatInterval = 0.6 - difficulty * 0.35; // from 0.6 to ~0.25
+
+    // Input movement
+    let mx = 0, my = 0;
+    if(input.left) mx -= 1;
+    if(input.right) mx += 1;
+    if(input.up) my -= 1;
+    if(input.down) my += 1;
+    // normalize
+    if(mx !== 0 || my !== 0){
+      const len = Math.hypot(mx,my) || 1;
+      mx/=len; my/=len;
+      player.vx = mx * player.speed;
+      player.vy = my * player.speed;
+    } else {
+      player.vx = 0; player.vy = 0;
+    }
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+
+    // clamp to canvas with small margin
+    const margin = 6;
+    player.x = Math.max(margin + player.r, Math.min(W - margin - player.r, player.x));
+    player.y = Math.max(margin + player.r, Math.min(H - margin - player.r, player.y));
+
+    // Dash mechanic
+    if (input.dodge && player.dashCooldown <= 0 && !player.isDashing) {
+      // Start dash
+      player.isDashing = true;
+      player.dodgeTime = DASH_DURATION;
+      player.dashCooldown = DASH_COOLDOWN;
+      
+      // Store dash direction based on movement or default to right
+      if (input.left || input.right || input.up || input.down) {
+        player.dashDirection = { x: 0, y: 0 };
+        if (input.left) player.dashDirection.x = -1;
+        if (input.right) player.dashDirection.x = 1;
+        if (input.up) player.dashDirection.y = -1;
+        if (input.down) player.dashDirection.y = 1;
+        
+        // Normalize direction
+        const len = Math.hypot(player.dashDirection.x, player.dashDirection.y) || 1;
+        player.dashDirection.x /= len;
+        player.dashDirection.y /= len;
+      } else {
+        // Default to right if not moving
+        player.dashDirection = { x: 1, y: 0 };
+      }
+      
+      // Play dash sound
+      if (audioCtx && musicOn) {
+        playBeep(audioCtx.currentTime, 800, 0.1, 0.2);
+      }
+    }
+    
+    // Handle dash cooldown
+    if (player.dashCooldown > 0) {
+      player.dashCooldown -= dt;
+    }
+    
+    // Handle active dash
+    if (player.isDashing) {
+      player.dodgeTime -= dt;
+      
+      // Move player during dash
+      player.x += player.dashDirection.x * DASH_SPEED * dt;
+      player.y += player.dashDirection.y * DASH_SPEED * dt;
+      
+      // Create lightning trail
+      if (Math.random() < 0.5) {
+        const lastPos = player.lastPositions[0] || { x: player.x, y: player.y };
+        lightningParticles.push(createLightningBolt(
+          lastPos.x, lastPos.y,
+          player.x, player.y,
+          2 + Math.random() * 3,
+          `hsl(${200 + Math.random() * 40}, 80%, 70%)`
+        ));
+      }
+      
+      // Store position for trail
+      player.lastPositions.unshift({ x: player.x, y: player.y });
+      if (player.lastPositions.length > 5) {
+        player.lastPositions.pop();
+      }
+      
+      // End dash
+      if (player.dodgeTime <= 0) {
+        player.isDashing = false;
+        player.lastPositions = [];
+      }
+    } else {
+      player.dodgeTime = 0;
+    }
+
+    // spawn timer & music beat timer
+    spawnTimer += dt;
+    beatTimer += dt;
+    if(beatTimer >= beatInterval && bullets.length < MAX_BULLETS - 10) { // Leave room for other spawns
+      beatTimer -= beatInterval;
+      if(musicOn){
+        if(!audioCtx) startAudio();
+        playBeep(audioCtx.currentTime + 0.01, 220 + difficulty*200, 0.09, 0.07);
+      }
+      // on beat: spawn a moderate wave (but respect bullet limit)
+      const waveCount = Math.min(2 + Math.round(3 * difficulty), MAX_BULLETS - bullets.length);
+      if (waveCount > 0) {
+        spawnWaveFromEdges(waveCount, 140 + difficulty * 120);
+      }
+      // sometimes spawn center burst
+      if(Math.random() < 0.14 + difficulty*0.12) {
+        const burstCount = Math.min(6 + Math.round(6*difficulty), MAX_BULLETS - bullets.length);
+        if (burstCount > 0) {
+          spawnCircleBurst(burstCount, 120 + difficulty*90, W/2 + (Math.random()-0.5)*120, H/2 + (Math.random()-0.5)*80);
+        }
+      }
+    }
+    if(spawnTimer >= spawnInterval && bullets.length < MAX_BULLETS){
+      spawnTimer -= spawnInterval;
+      // spawn random bullets targeting player, but respect the bullet limit
+      const maxSpawn = MAX_BULLETS - bullets.length;
+      if (maxSpawn > 0) {
+        const num = Math.min(1 + Math.round(2 * difficulty), maxSpawn);
+        for(let i=0;i<num;i++){
+          const side = Math.floor(Math.random()*4);
+          let x,y;
+          if(side===0){ x = -10; y = Math.random()*H; }
+          else if(side===1){ x = W+10; y = Math.random()*H; }
+          else if(side===2){ x = Math.random()*W; y = -10; }
+          else { x = Math.random()*W; y = H+10; }
+          const aimNoise = 60 + difficulty*140;
+          const tx = player.x + (Math.random()-0.5)*aimNoise;
+          const ty = player.y + (Math.random()*2-1)*aimNoise;
+          spawnBullet({x,y,tx,ty, speed: 120 + Math.random()*80 + difficulty*80, r:5 + Math.random()*6, color: `hsl(${Math.random()*360},70%,70%)`});
+        }
+      }
+    }
+
+    // update bullets
+    for(let i = bullets.length-1; i>=0; i--){
+      const b = bullets[i];
+      // simple homing or behavior could be added
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life -= dt;
+      // remove if off-screen far or life end
+      if(b.x < -60 || b.x > W+60 || b.y < -60 || b.y > H+60 || b.life <= 0) {
+        bullets.splice(i,1);
+        continue;
+      }
+      // collision with player if not dashing
+      if(!player.isDashing && circleCollide(b, {x:player.x, y:player.y, r:player.r})){
+        player.hp -= b.damage || 10;
+        if(player.hp <= 0) gameOver();
+        bullets.splice(i,1);
+        updateUI();
+        // visual feedback
+        if(audioCtx) playBeep(audioCtx.currentTime, 100, 0.1, 0.2);
+        // Create hit effect
+        for(let j = 0; j < 8; j++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 50 + Math.random() * 50;
+          const vx = Math.cos(angle) * speed;
+          const vy = Math.sin(angle) * speed;
+          bullets.push({
+            x: player.x, y: player.y, vx, vy,
+            r: 2 + Math.random() * 3,
+            color: '#f55',
+            life: 0.5 + Math.random() * 0.5,
+            damage: 0
+          });
+        }
+        continue;
+      }
+    }
+
+    // Update score every second
+    lastScoreUpdate += dt;
+    if (lastScoreUpdate >= 1.0) {
+      score += Math.floor(lastScoreUpdate);
+      lastScoreUpdate -= Math.floor(lastScoreUpdate);
+      updateUI();
+    }
+  }
+  
+  // Handle dash cooldown
+  if (player.dashCooldown > 0) {
+    player.dashCooldown -= dt;
+  }
+  
+  // Draw HUD and paused overlay
+  if(!running){
+    // if game not started or is over, handled by HTML overlays
+  } else if(paused){
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#fff';
+    ctx.font = '28px ' + document.body.style.fontFamily;
+    ctx.textAlign = 'center';
+    ctx.fillText('已暂停', W/2, H/2);
+  }
+
+  function render(){
+    // Clear canvas
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Update and render lightning particles
+    for (let i = lightningParticles.length - 1; i >= 0; i--) {
+      const bolt = lightningParticles[i];
+      bolt.life -= 1/60; // Assuming 60fps
+      
+      if (bolt.life <= 0) {
+        lightningParticles.splice(i, 1);
+        continue;
+      }
+      
+      // Draw lightning bolt
+      const alpha = bolt.life / 0.4; // Fade out
+      ctx.strokeStyle = bolt.color.replace(')', `, ${alpha})`).replace('hsl(', 'hsla(');
+      ctx.lineWidth = bolt.width * (0.5 + bolt.life / 0.8);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.beginPath();
+      ctx.moveTo(bolt.points[0].x, bolt.points[0].y);
+      
+      for (let j = 1; j < bolt.points.length; j++) {
+        ctx.lineTo(bolt.points[j].x, bolt.points[j].y);
+      }
+      
+      ctx.stroke();
+    }
+    
+    // Draw grid
+    const gridSize = 40;
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for(let i=0;i<W;i+=gridSize){
+      ctx.beginPath();
+      ctx.moveTo(i,0);
+      ctx.lineTo(i,H);
+      ctx.stroke();
+    }
+    for(let i=0;i<H;i+=gridSize){
+      ctx.beginPath();
+      ctx.moveTo(0,i);
+      ctx.lineTo(W,i);
+      ctx.stroke();
+    }
+    
+    // Draw player
+    ctx.save();
+    if(player.isDashing) {
+      ctx.shadowColor = 'rgba(100,200,255,0.8)';
+      ctx.shadowBlur = 30;
+      ctx.globalAlpha = 0.9;
+    } else if(player.dashCooldown > 0) {
+      ctx.shadowColor = 'rgba(100,100,255,0.4)';
+      ctx.shadowBlur = 10;
+    }
+    
+    // Draw player with dash effect
+    ctx.fillStyle = player.isDashing ? '#9cf' : (player.dashCooldown > 0 ? '#ffd166' : '#ffd166');
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Draw dash cooldown indicator
+    if(!player.isDashing && player.dashCooldown > 0) {
+      ctx.strokeStyle = 'rgba(100,200,255,0.7)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      const progress = 1 - (player.dashCooldown / DASH_COOLDOWN);
+      ctx.arc(player.x, player.y, player.r + 5, -Math.PI/2, -Math.PI/2 + progress * Math.PI*2);
+      ctx.stroke();
+    }
+    
+    // Add glow effect when dashing
+    if(player.isDashing) {
+      const gradient = ctx.createRadialGradient(
+        player.x, player.y, player.r,
+        player.x, player.y, player.r * 2.5
+      );
+      gradient.addColorStop(0, 'rgba(150,220,255,0.5)');
+      gradient.addColorStop(1, 'rgba(150,220,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
+    
+    // Draw bullets
+    for(let i=0;i<bullets.length;i++){
+      const b = bullets[i];
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    
+    // Draw score
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px ' + document.body.style.fontFamily;
+    ctx.textAlign = 'right';
+    ctx.fillText(`Score: ${score}`, W - 20, 30);
+    
+    // Draw health bar
+    const healthBarWidth = 100;
+    const healthBarHeight = 8;
+    const healthBarX = 10;
+    const healthBarY = 10;
+    
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+    
+    // Health fill
+    const healthRatio = player.hp / player.maxHp;
+    const healthFillWidth = healthBarWidth * healthRatio;
+    const healthColor = `hsl(${healthRatio * 120}, 80%, 50%)`;
+    
+    ctx.fillStyle = healthColor;
+    ctx.fillRect(healthBarX, healthBarY, healthFillWidth, healthBarHeight);
+    
+    // Health text
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px ' + document.body.style.fontFamily;
+    ctx.textAlign = 'left';
+    ctx.fillText(`HP: ${Math.ceil(player.hp)}%`, healthBarX, healthBarY + healthBarHeight + 14);
+    
+    // Reset text style for other HUD elements
+    ctx.font = '16px ' + document.body.style.fontFamily;
+    ctx.textAlign = 'left';
+    ctx.textAlign = 'center';
+  }
+
+  // Input handling
+  window.addEventListener('keydown', e => {
+    if(!running && (e.key.length===1 || e.key === ' ' || e.key === 'Enter')) {
+      // start
+      startGame();
+    }
+    if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = true;
+    if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = true;
+    if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') input.up = true;
+    if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') input.down = true;
+    if(e.key === ' ' || e.key === 'Shift') {
+      input.dodge = true;
+    }
+    if(e.key === 'p' || e.key === 'P') togglePause();
+  });
+  window.addEventListener('keyup', e => {
+    if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = false;
+    if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = false;
+    if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') input.up = false;
+    if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') input.down = false;
+    if(e.key === ' ' || e.key === 'Shift') {
+      input.dodge = false;
+    }
+  });
+
+  // touch controls: drag to move; tap to dodge
+  let touchId = null;
+  let lastTap = 0;
+  canvas.addEventListener('touchstart', (ev) => {
+    ev.preventDefault();
+    const t = ev.changedTouches[0];
+    touchId = t.identifier;
+    const rect = canvas.getBoundingClientRect();
+    const x = (t.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (t.clientY - rect.top) * (canvas.height / rect.height);
+    // set player target (move) by setting input directional relative to center
+    // simpler: position player to touch (direct control)
+    player.x = x; player.y = y;
+    const now = Date.now();
+    if(now - lastTap < 350){
+      input.dodge = true;
+      setTimeout(()=>input.dodge=false, 220);
+    }
+    lastTap = now;
+  }, {passive:false});
+  canvas.addEventListener('touchmove', (ev) => {
+    ev.preventDefault();
+    const t = ev.changedTouches[0];
+    if(t.identifier !== touchId) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (t.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (t.clientY - rect.top) * (canvas.height / rect.height);
+    player.x = x; player.y = y;
+  }, {passive:false});
+  canvas.addEventListener('touchend', (ev) => {
+    const t = ev.changedTouches[0];
+    if(t.identifier === touchId) touchId = null;
+  });
+
+  // Buttons
+  startBtn.addEventListener('click', startGame);
+  restartBtn2.addEventListener('click', () => { gameoverPanel.classList.add('hidden'); startGame(); });
+  toMenuBtn.addEventListener('click', () => {
+    gameoverPanel.classList.add('hidden'); startPanel.classList.remove('hidden');
+  });
+  btnMusic.addEventListener('click', () => {
+    musicOn = !musicOn;
+    btnMusic.textContent = '音乐：' + (musicOn ? '开' : '关');
+    if(musicOn && !audioCtx) startAudio();
+    if(!musicOn && audioCtx){
+      try{ audioCtx.suspend(); }catch(e){}
+    } else {
+      try{ audioCtx.resume(); }catch(e){}
+    }
+  });
+  btnPause.addEventListener('click', togglePause);
+  btnRestart.addEventListener('click', () => {
+    resetGame(); if(!running){ startGame(); }
+  });
+
+  function togglePause(){
+    if(!running) return;
+    paused = !paused;
+    btnPause.textContent = paused ? '继续' : '暂停';
+  }
+
+  function startGame(){
+    startPanel.classList.add('hidden');
+    gameoverPanel.classList.add('hidden');
+    
+    // Play background music in loop
+    const bgMusic = document.getElementById('bgMusic');
+    if (musicOn) {
+      bgMusic.volume = 0.5; // Set volume to 50%
+      bgMusic.loop = true; // Ensure it loops
+      bgMusic.play().catch(e => console.log("Audio play failed:", e));
+    }
+    
+    if(!audioCtx && musicOn) startAudio();
+    running = true;
+    paused = false;
+    resetGame();
+    lastTime = performance.now();
+  }
+
+  // initial draw
+  resetGame();
+  render();
+  requestAnimationFrame(loop);
+
+  // expose for debug (optional)
+  window.__Dodge = { bullets, player, startGame, resetGame, canvas };
+})();
+</script>
+</body>
+</html>
