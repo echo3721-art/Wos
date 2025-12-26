@@ -7,1464 +7,575 @@
   <link rel="icon" href="ppplll.png" type="image/png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Orbitron:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="Wos.css">
-  <audio id="bgMusic" loop preload="auto" style="display: none;">
-    <source src="Wos.mp3" type="audio/mpeg">
-    Your browser does not support the audio element.
-  </audio>
-  <audio id="hoverSound" preload="auto" style="display: none;">
-    <source src="menu.mp3" type="audio/mpeg">
-    Your browser does not support the audio element.
-  </audio>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Orbitron:wght@500;600&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Global Styles */
+    html, body {
+        height: 100%;
+        margin: 0;
+        background-color: #111;
+        background-image: url('gb.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        color: white;
+        font-family: 'Space Grotesk', sans-serif;
+        overflow: hidden; 
+        user-select: none;
+        transition: background-image 0.5s ease;
+    }
+
+    /* Welcome Screen */
+    #welcome-screen {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        cursor: pointer;
+        transition: opacity 1s ease-out;
+    }
+
+    #welcome-screen canvas {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: 1999;
+    }
+
+    #welcome-content {
+        position: relative;
+        z-index: 2001;
+        text-align: center;
+    }
+
+    .fade-out { opacity: 0; pointer-events: none; }
+
+    .glow {
+        font-size: 3em;
+        font-family: 'Orbitron', sans-serif;
+        color: #0ff;
+        text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+        animation: welcomeGlow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes welcomeGlow {
+        from { text-shadow: 0 0 10px #0ff; }
+        to { text-shadow: 0 0 30px #0ff, 0 0 40px #0ff; }
+    }
+
+    /* Desktop Layout */
+    #desktop {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        grid-auto-rows: 150px;
+        padding: 40px;
+        gap: 20px;
+        height: calc(100vh - 40px);
+        position: relative;
+    }
+    
+    /* Icon Container */
+    .app-icon {
+        width: 120px;
+        height: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+        z-index: 10;
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        will-change: transform, left, top;
+    }
+
+    /* Icon Inner - contains floating effect */
+    .app-icon-inner {
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        box-sizing: border-box;
+        animation: idleFloat 4s ease-in-out infinite;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+    }
+
+    @keyframes idleFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .icon-emoji {
+        font-size: 40px;
+        margin-bottom: 5px;
+    }
+
+    .app-label {
+        font-size: 12px;
+        font-weight: 600;
+        text-align: center;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        pointer-events: none;
+        word-wrap: break-word;
+        max-width: 100%;
+    }
+
+    .app-icon:hover {
+        z-index: 20;
+        transform: scale(1.08);
+    }
+
+    .app-icon:hover .app-icon-inner {
+        animation-play-state: paused;
+        background: rgba(0, 255, 255, 0.1);
+        border: 2px solid #0ff;
+        box-shadow: 0 0 25px rgba(0, 255, 255, 0.3);
+    }
+
+    .app-icon.dragging {
+        cursor: grabbing;
+        z-index: 1000;
+    }
+
+    .app-icon.dragging .app-icon-inner {
+        animation: none;
+        transform: scale(1.1);
+        border-color: #fff;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* UI Elements */
+    #desktop-footer {
+        position: fixed;
+        bottom: 0; left: 0;
+        width: 100%;
+        height: 40px;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85em;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: rgba(0, 255, 255, 0.6);
+        z-index: 100;
+        border-top: 1px solid rgba(0, 255, 255, 0.1);
+    }
+
+    .bottom-button {
+        position: fixed;
+        bottom: 55px;
+        right: 20px;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 10, 10, 0.85);
+        border-radius: 14px;
+        border: 1px solid rgba(0, 255, 255, 0.25);
+        cursor: pointer;
+        transition: all 0.3s;
+        z-index: 100;
+        font-size: 1.3em;
+        backdrop-filter: blur(10px);
+    }
+
+    .bottom-button:hover {
+        border-color: #0ff;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        transform: translateY(-3px);
+    }
+    
+    #settings-button { right: 80px; }
+    
+    #settings-menu {
+        position: fixed;
+        bottom: 115px;
+        right: 20px;
+        width: 230px;
+        background: rgba(5, 5, 5, 0.98);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 16px;
+        padding: 10px;
+        z-index: 150;
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.9);
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        backdrop-filter: blur(20px);
+    }
+
+    #settings-menu div, #settings-menu label {
+        padding: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-radius: 10px;
+        font-size: 14px;
+        color: #bbb;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    #settings-menu div:hover, #settings-menu label:hover {
+        background: rgba(0, 255, 255, 0.15);
+        color: #fff;
+    }
+    
+    #bg-upload { display: none; }
+  </style>
+
+  <!-- Audio elements -->
+  <audio id="bgMusic" loop preload="auto"><source src="Wos.mp3" type="audio/mpeg"></audio>
+  <audio id="startupSound" preload="auto"><source src="startup.mp3" type="audio/mpeg"></audio>
+  <audio id="hoverSound" preload="auto"><source src="menu.mp3" type="audio/mpeg"></audio>
 </head>
-<body>
-  <div id="welcome-screen">
+<body oncontextmenu="return false;">
+
+  <div id="welcome-screen" onclick="bootSystem()">
     <canvas id="welcome-visualizer"></canvas>
     <div id="welcome-content">
-      <h1 class="glow">Welcome to My Game</h1>
-      <p class="sound-prompt">Click anywhere to enable sound</p>
-      <p class="made-by">Made by William</p>
+      <h1 class="glow">W OS</h1>
+      <p style="color: #fff; opacity: 0.5; letter-spacing: 2px;">CLICK TO BOOT</p>
     </div>
   </div>
-  
-  <style>
-    #welcome-screen {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 9999;
-      background: rgba(0, 0, 0, 0.9);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      cursor: pointer;
-    }
-    #welcome-visualizer {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      display: block;
-      z-index: -1;
-    }
-    #welcome-content {
-      text-align: center;
-      padding: 2rem;
-      background: rgba(0, 0, 0, 0.6);
-      border-radius: 20px;
-      box-shadow: 0 0 50px rgba(0, 229, 255, 0.3);
-      animation: pulse 2s infinite;
-    }
-    .glow {
-      color: #fff;
-      text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff, 0 0 30px #00e5ff;
-      font-size: 3.5em;
-      margin: 0 0 1rem 0;
-      animation: glow 1.5s ease-in-out infinite alternate;
-    }
-    .sound-prompt {
-      color: #00e5ff;
-      font-size: 1.2em;
-      margin: 1rem 0;
-      opacity: 0.8;
-      animation: fadeInOut 2s ease-in-out infinite;
-    }
-    .made-by {
-      color: #888;
-      margin-top: 2rem;
-      font-style: italic;
-    }
-    #welcome-screen.fade-out {
-      opacity: 0;
-      transition: opacity 1.5s ease;
-      pointer-events: none;
-    }
-    @keyframes glow {
-      from { text-shadow: 0 0 10px #00e5ff, 0 0 20px #00e5ff; }
-      to { text-shadow: 0 0 20px #00e5ff, 0 0 30px #00e5ff, 0 0 40px #00a8ff; }
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-      100% { transform: scale(1); }
-    }
-    @keyframes fadeInOut {
-      0% { opacity: 0.6; }
-      50% { opacity: 1; }
-      100% { opacity: 0.6; }
-    }
-  </style>
-  
-  <script>
-  // Get audio elements
-  const bgMusic = document.getElementById('bgMusic');
-  const hoverSound = document.getElementById('hoverSound');
-  const welcomeScreen = document.getElementById('welcome-screen');
-  let audioStarted = false;
-  
-  // Minimal visualizer (no UI)
-  const canvas = document.getElementById('welcome-visualizer');
-  const ctx = canvas.getContext('2d');
-  let W = canvas.width = innerWidth;
-  let H = canvas.height = innerHeight;
-  window.addEventListener('resize', ()=>{W=canvas.width=innerWidth;H=canvas.height=innerHeight;});
-  
-  class Particle {
-    constructor(){this.reset();}
-    reset(){
-      this.x = Math.random()*W;
-      this.y = Math.random()*H;
-      this.vx = (Math.random()-0.5)*2;
-      this.vy = (Math.random()-0.5)*2;
-      this.size = Math.random()*2+1;
-      this.hue = 180+Math.random()*120;
-    }
-    update(){
-      this.x+=this.vx; this.y+=this.vy;
-      if(this.x<0||this.x>W||this.y<0||this.y>H) this.reset();
-    }
-    draw(){
-      ctx.beginPath();
-      ctx.fillStyle=`hsla(${this.hue},100%,60%,0.8)`;
-      ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-      ctx.fill();
-    }
-  }
-  
-  let particles=[];
-  for(let i=0;i<800;i++) particles.push(new Particle());
-  
-  function startAudio() {
-    if (audioStarted) return;
-    audioStarted = true;
-    
-    try {
-      // Unmute and start background music
-      bgMusic.muted = false;
-      const playPromise = bgMusic.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.log('Autoplay prevented:', error);
-        });
-      }
-      
-      // Start hover sound for later use
-      hoverSound.muted = false;
-      
-      // Start fade out animation
-      welcomeScreen.classList.add('fade-out');
-      
-      // Remove welcome screen after animation completes
-      setTimeout(() => {
-        welcomeScreen.style.display = 'none';
-      }, 1500);
-      
-    } catch (e) {
-      console.error('Audio error:', e);
-    }
-  }
-  
-  // Click anywhere to enable sound and start the game
-  document.addEventListener('click', startAudio, { once: true });
-  document.addEventListener('touchstart', startAudio, { once: true, passive: true });
-  
-  function loop(){
-    ctx.fillStyle="rgba(0,20,26,0.1)";
-    ctx.fillRect(0,0,W,H);
-    particles.forEach(p=>{p.update();p.draw();});
-    requestAnimationFrame(loop);
-  }
-  loop();
-  </script>
-  </div>
-  <h1>Welcome to W OS</h1>
- <h1 style="text-align:center; font-size: 48px; color: #0ff; text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;">
-   Big Update:lets chat!
-</h1>
 
-  <div id="reminder" style="
-    position: fixed;
-    left: 20px;
-    bottom: 80px;
-    background-color: #ff9900;
-    border-radius: 10px;
-    padding: 10px 20px;
-    color: white;
-    font-weight: bold;
-    z-index: 1000;
-    box-shadow: 0 0 15px rgba(255, 153, 0, 0.7);
-  ">
-    Want to play two-player games? Click the Feedback button below and let me know! I'll start the server for you.
-  </div>
-  
-  <div id="feedback-button" style="
-    position: fixed;
-    left: 20px;
-    bottom: 20px;
-    background-color: #00ff00;
-    border-radius: 10px;
-    padding: 15px 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 1000;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-  ">
-    <a href="https://mail.google.com/mail/u/0/?view=cm&fs=1&to=william.home.z.liu@gmail.com&su=W%20OS%20Feedback&body=Hello%20William%2C%0A%0AI%20have%20some%20feedback%20about%20W%20OS%3A%0A%0A" style="
-      text-decoration: none;
-      color: black;
-      font-size: 20px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      width: 100%;
-      padding: 0 10px;
-    ">
-      Feedback
-    </a>
-  </div>
   <div id="desktop">
-
-<div class="app-icon" data-id="maze" onclick="window.open('maze-game.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🎮
-  <div class="app-label">Maze Game</div>
-</div>
-
-<div class="app-icon" data-id="platform" onclick="window.open('platform_game.HTML', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🕹️
-  <div class="app-label">Platform Game</div>
-</div>
-
-<div class="app-icon" data-id="ai-chat" onclick="window.open('smart-chat.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🤖
-  <div class="app-label">AI Chat</div>
-</div>
-
-<div class="app-icon" data-id="translator" onclick="window.open('wtrandsleter.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🔢
-  <div class="app-label">W Trandaleter</div>
-</div>
-
-<div class="app-icon" data-id="space-ranger" onclick="window.open('space.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🚀
-  <div class="app-label">Space Ranger</div>
-</div>
-
-<div class="app-icon" data-id="tycoon" onclick="window.open('restraw.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🍜
-  <div class="app-label">Restrawn Tycoon</div>
-</div>
-
-<div class="app-icon" data-id="ball" onclick="window.open('ball.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🎱
-  <div class="app-label">Ball Game</div>
-</div>
-
-<div class="app-icon" data-id="jelly" onclick="window.open('jelly.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🍯
-  <div class="app-label">Jelly Game</div>
-</div>
-
-<div class="app-icon" data-id="only-jump" onclick="window.open('only jump.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  ↑
-  <div class="app-label">Only Jump</div>
-</div>
-
-<div class="app-icon" data-id="snake" onclick="window.open('snake.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🐍
-  <div class="app-label">Snake Game</div>
-</div>
-
-<div class="app-icon" data-id="fly" onclick="window.open('fly.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🛬
-  <div class="app-label">Flying Game</div>
-</div>
-
-<div class="app-icon" data-id="math" onclick="window.open('math.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  📊
-  <div class="app-label">edu w kots</div>
-</div>
-
-<div class="app-icon" data-id="school-chat" onclick="window.open('https://chatgpt.com/share/68c13caf-e53c-800a-8cd2-69fbec29f222', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  💬
-  <div class="app-label">school chat</div>
-</div>
-
-<div class="app-icon" data-id="lets-chat" onclick="window.open('https://tlk.io/wos', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🔥
-  <div class="app-label">Lets Chat (new)</div>
-</div>
-<div class="app-icon" data-id="duel" onclick="window.open('https://12dc283ea60f.ngrok-free.app', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🎮
-  <div class="app-label">2 Player Duel</div>
-</div>
-
-<div class="app-icon" data-id="adventure" onclick="window.open('https://echo3721.itch.io/avendur', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🧭
-  <div class="app-label">Adventure Time</div>
-</div>
-
-<div class="app-icon" data-id="deltaship" onclick="window.open('https://aquamarine-bienenstitch-4e1373.netlify.app/', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🚀
-  <div class="app-label">deltaship</div>
-</div>
-
-<div class="app-icon" data-id="doge" onclick="window.open('doge.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🐕
-  <div class="app-label">Dodge Game</div>
-</div>
-
-<div class="app-icon" data-id="cavegame" onclick="window.open('cave.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  ⛏️
-  <div class="app-label">Cave Game (new)</div>
-</div>
-<div class="app-icon" data-id="visual" onclick="window.open('uwu.html', '_blank')" oncontextmenu="showContextMenu(event, this)">
-  🌈
-  <div class="app-label">visual (new)</div>
-</div>
-
-</div>
-
-
-
-
-  <!-- Background upload button -->
-  <div class="bg-upload-container">
-    <label for="bg-upload" class="bg-upload-label">🖼️ Upload Background</label>
-    <input type="file" id="bg-upload" accept="image/*" style="display: none;">
-  </div>
-
-
-
-  <!-- WOS Loader Popup -->
-  <div id="wosLoaderWindow" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.9); padding: 20px; border-radius: 10px; color: white; z-index: 10000; max-width: 80%; max-height: 80%; overflow-y: auto;">
-    <h2>WOS Loader</h2>
-    <p>Load a .wos game file or download a blank template.</p>
-    <button id="downloadWosBtn" style="display: block; margin: 10px 0; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
-      Download Blank Template
-    </button>
-    <input type="file" id="wosFileInput" accept=".wos" style="display: none;">
-    <button onclick="document.getElementById('wosFileInput').click()" style="display: block; margin: 10px 0; padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">
-      Load .wos File
-    </button>
-    <div id="wosAppContainer" style="margin-top: 20px; padding: 10px; border: 1px solid #444; min-height: 100px;">
-      <!-- Loaded app/game will appear here -->
+    <div class="app-icon" data-name="maze" onclick="openApp(event, 'maze-game.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🎮</span>
+        <span class="app-label">Maze</span>
+      </div>
     </div>
-    <button onclick="document.getElementById('wosLoaderWindow').style.display = 'none'" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: white; font-size: 20px; cursor: pointer;">
-      ×
-    </button>
+    <div class="app-icon" data-name="platform" onclick="openApp(event, 'platform_game.HTML')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🕹️</span>
+        <span class="app-label">Platform</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="ai-chat" onclick="openApp(event, 'smart-chat.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🤖</span>
+        <span class="app-label">AI Chat</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="translator" onclick="openApp(event, 'wtrandsleter.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🔢</span>
+        <span class="app-label">Translate</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="space-ranger" onclick="openApp(event, 'space.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🚀</span>
+        <span class="app-label">Space</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="tycoon" onclick="openApp(event, 'restraw.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🍜</span>
+        <span class="app-label">Tycoon</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="ball" onclick="openApp(event, 'ball.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🎱</span>
+        <span class="app-label">Ball</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="jelly" onclick="openApp(event, 'jelly.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🍯</span>
+        <span class="app-label">Jelly</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="only-jump" onclick="openApp(event, 'only jump.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">↑</span>
+        <span class="app-label">Jump</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="snake" onclick="openApp(event, 'snake.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🐍</span>
+        <span class="app-label">Snake</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="fly" onclick="openApp(event, 'fly.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🛬</span>
+        <span class="app-label">Flight</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="math" onclick="openApp(event, 'math.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">📊</span>
+        <span class="app-label">Education</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="school-chat" onclick="openApp(event, 'https://chatgpt.com/share/68c13caf-e53c-800a-8cd2-69fbec29f222')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">💬</span>
+        <span class="app-label">Study</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="lets-chat" onclick="openApp(event, 'https://tlk.io/wos')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🔥</span>
+        <span class="app-label">Global Chat</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="adventure" onclick="openApp(event, 'https://echo3721.itch.io/avendur')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🧭</span>
+        <span class="app-label">Adventure</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="doge" onclick="openApp(event, 'doge.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🐕</span>
+        <span class="app-label">Dodge</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="cavegame" onclick="openApp(event, 'cave.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">⛏️</span>
+        <span class="app-label">Cave</span>
+      </div>
+    </div>
+    <div class="app-icon" data-name="visual" onclick="openApp(event, 'uwu.html')">
+      <div class="app-icon-inner">
+        <span class="icon-emoji">🌈</span>
+        <span class="app-label">Visual</span>
+      </div>
+    </div>
+<div class="app-icon" data-name="fps-shooting" onclick="openApp(event, 'https://vlxp29-3000.csb.app/')">
+  <div class="app-icon-inner">
+    <span class="icon-emoji">🔫</span>
+    <span class="app-label">FPS Shooting</span>
+  </div>
+</div>
+  </div>
+  <div id="settings-menu">
+    <div onclick="resetAppPositions()">🔄 Reset Desktop</div>
+    <label for="bg-upload">🖼️ Wallpapers</label>
+    <input type="file" id="bg-upload" accept="image/*" onchange="uploadBackground(event)">
   </div>
 
-  <!-- Add WOS Loader icon to desktop -->
-  <div class="app-icon" id="wosLoaderAppIcon" oncontextmenu="showContextMenu(event, this)">
-    📁
-    <div class="app-label">WOS Loader</div>
-  </div>
+  <div id="settings-button" class="bottom-button" onclick="toggleSettingsMenu()">⚙️</div>
 
-  
-  <style>
-    .download-button {
-      display: none;
-      opacity: 0;
-      transition: opacity 0.5s ease-in-out;
-    }
-    #welcome-screen.fade-out ~ .download-button {
-      display: block;
-      opacity: 1;
-    }
+  <a href="mailto:william.home.z.liu@gmail.com?subject=W OS Feedback">
+    <div id="feedback-button" class="bottom-button">📧</div>
+  </a>
+
+  <div id="desktop-footer">W OS // QUANTUM INTERFACE ONLINE</div>
+
+  <script>
+    const desktop = document.getElementById('desktop');
+    const icons = document.querySelectorAll('.app-icon');
     
-    .app-icon {
-      position: relative;
-      width: 120px;
-      height: 120px;
-      margin: 20px;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background-size: cover;
-      background-position: center;
-      border-radius: 15px;
-      transition: transform 0.2s;
-      background-color: rgba(0, 0, 0, 0.1);
-    }
-    .app-icon:hover {
-      transform: scale(1.1);
-    }
-    .app-icon-img {
-      width: 80px;
-      height: 80px;
-      object-fit: contain;
-      background-color: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-    }
-    .app-label {
-      font-size: 14px;
-      margin-top: 10px;
-      color: white;
-      text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    }
+    let holdTimer = null;         
+    let isDragging = false;       
+    let dragElement = null;
+    let offsetX, offsetY;
+    let wasDragged = false;       
+    let hasBooted = false;
 
-    /* Background upload styles */
-    .bg-upload-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 1000;
-    }
-    .bg-upload-label {
-      display: inline-block;
-      padding: 8px 16px;
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-      border-radius: 20px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.2s;
-    }
-    .bg-upload-label:hover {
-      background-color: rgba(0, 0, 0, 0.9);
-    }
-    .app-label {
-      font-size: 14px;
-      margin-top: 10px;
-      color: white;
-      text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    }
-    .context-menu {
-      position: fixed;
-      background: rgba(0, 0, 0, 0.9);
-      border-radius: 5px;
-      padding: 8px;
-      display: none;
-      z-index: 1000;
-      min-width: 150px;
-    }
-    .context-menu-item {
-      color: white;
-      padding: 8px;
-      cursor: pointer;
-      text-align: left;
-    }
-    .context-menu-item:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-  </style>
-  <div class="context-menu" id="appContextMenu">
-    <div class="context-menu-item" onclick="changeBackground(this)">Change Background</div>
-    <div class="context-menu-item" onclick="changeIcon(this)">Change Icon</div>
-  </div>
-
-  <!-- Background Upload Button -->
-  <div id="background-upload" style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; color: white; cursor: pointer; z-index: 1000;">
-    <label for="bg-upload" style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
-      <span>🖼️ Upload Background</span>
-      <input type="file" id="bg-upload" accept="image/*" style="display: none;">
-    </label>
-  </div>
-  <div id="background-preview" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background-size: cover; background-position: center; background-repeat: no-repeat;">
-  </div>
-
-
-  </div>
-<script>
-const ICON_HOLD_DELAY = 400;
-const COOKIE_NAME = 'wos_icon_positions';
-
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return parts.pop().split(';').shift();
-  }
-  return null;
-}
-
-function setCookie(name, value, days = 365) {
-  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
-}
-
-function loadIconPositions() {
-  try {
-    const cookie = getCookie(COOKIE_NAME);
-    return cookie ? JSON.parse(decodeURIComponent(cookie)) : {};
-  } catch (e) {
-    console.warn('Failed to parse icon positions cookie', e);
-    return {};
-  }
-}
-
-function saveIconPositions(positions) {
-  setCookie(COOKIE_NAME, JSON.stringify(positions));
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const desktop = document.getElementById('desktop');
-  const positions = loadIconPositions();
-  const icons = Array.from(desktop.querySelectorAll('.app-icon[data-id]'));
-  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-  const initialPositions = new Map();
-  const hasSavedPositions = Object.keys(positions).length > 0;
-
-  // Capture initial layout metrics before switching to absolute positioning
-  icons.forEach(icon => {
-    initialPositions.set(icon, {
-      left: icon.offsetLeft,
-      top: icon.offsetTop
-    });
-  });
-
-  const desktopHeight = desktop.offsetHeight;
-  if (desktopHeight > 0) {
-    desktop.style.height = `${desktopHeight}px`;
-  }
-
-  desktop.style.position = 'relative';
-
-  icons.forEach(icon => {
-    const id = icon.dataset.id;
-    const { left: initialLeft, top: initialTop } = initialPositions.get(icon) || { left: 0, top: 0 };
-    icon.style.position = 'absolute';
-    icon.style.margin = '0';
-    icon.style.left = `${initialLeft}px`;
-    icon.style.top = `${initialTop}px`;
-    const saved = positions[id];
-    if (saved) {
-      icon.style.left = `${clamp(saved.x, 0, Math.max(desktop.clientWidth - icon.offsetWidth, 0))}px`;
-      icon.style.top = `${clamp(saved.y, 0, Math.max(desktop.clientHeight - icon.offsetHeight, 0))}px`;
-    } else if (!hasSavedPositions) {
-      positions[id] = {
-        x: initialLeft,
-        y: initialTop
-      };
-    }
-  });
-
-  if (!hasSavedPositions) {
-    saveIconPositions(positions);
-  }
-
-  icons.forEach(icon => {
-    let holdTimeout = null;
-    let isDragging = false;
-    let suppressClick = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let iconStartX = 0;
-    let iconStartY = 0;
-    let pointerId = null;
-
-    const clearHold = () => {
-      if (holdTimeout) {
-        clearTimeout(holdTimeout);
-        holdTimeout = null;
-      }
+    window.onload = function() {
+        loadBackground();
     };
 
-    const storePosition = () => {
-      positions[icon.dataset.id] = {
-        x: parseInt(icon.style.left, 10),
-        y: parseInt(icon.style.top, 10)
-      };
-      saveIconPositions(positions);
-    };
-
-    const endDrag = commit => {
-      clearHold();
-      if (isDragging) {
-        icon.classList.remove('dragging');
-        isDragging = false;
-        pointerId = null;
-        if (commit) {
-          storePosition();
-          suppressClick = true;
-          setTimeout(() => {
-            suppressClick = false;
-          }, 0);
-        }
-      }
-    };
-
-    const updatePosition = (clientX, clientY) => {
-      const deltaX = clientX - dragStartX;
-      const deltaY = clientY - dragStartY;
-      const maxX = Math.max(desktop.clientWidth - icon.offsetWidth, 0);
-      const maxY = Math.max(desktop.clientHeight - icon.offsetHeight, 0);
-      const nextX = clamp(iconStartX + deltaX, 0, maxX);
-      const nextY = clamp(iconStartY + deltaY, 0, maxY);
-      icon.style.left = `${nextX}px`;
-      icon.style.top = `${nextY}px`;
-    };
-
-    const onPointerMove = event => {
-      if (!isDragging) return;
-      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-      updatePosition(clientX, clientY);
-    };
-
-    const startDrag = event => {
-      isDragging = true;
-      icon.classList.add('dragging');
-      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-      dragStartX = clientX;
-      dragStartY = clientY;
-      iconStartX = parseInt(icon.style.left, 10);
-      iconStartY = parseInt(icon.style.top, 10);
-    };
-
-    const pointerDownHandler = event => {
-      if (event.type === 'mousedown' && event.button !== 0) return;
-      const id = event.pointerId ?? (event.changedTouches ? event.changedTouches[0].identifier : 'touch');
-      if (pointerId !== null && pointerId !== id) return;
-      pointerId = id;
-      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-      dragStartX = clientX;
-      dragStartY = clientY;
-      iconStartX = parseInt(icon.style.left, 10);
-      iconStartY = parseInt(icon.style.top, 10);
-
-      holdTimeout = setTimeout(() => {
-        startDrag(event);
-      }, ICON_HOLD_DELAY);
-    };
-
-    const pointerUpHandler = event => {
-      const id = event.pointerId ?? (event.changedTouches ? event.changedTouches[0].identifier : 'touch');
-      if (pointerId !== null && id !== pointerId) return;
-      if (!isDragging) {
-        clearHold();
-        pointerId = null;
-        return;
-      }
-      event.preventDefault();
-      endDrag(true);
-    };
-
-    const pointerMoveHandler = event => {
-      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-      if (!isDragging) {
-        if (holdTimeout) {
-          const moveX = Math.abs(clientX - dragStartX);
-          const moveY = Math.abs(clientY - dragStartY);
-          if (moveX > 5 || moveY > 5) {
-            clearHold();
-            pointerId = null;
-          }
-        }
-        return;
-      }
-      event.preventDefault();
-      onPointerMove(event);
-    };
-
-    icon.addEventListener('click', event => {
-      if (suppressClick) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        suppressClick = false;
-      }
-    }, true);
-
-    icon.addEventListener('mousedown', pointerDownHandler);
-    icon.addEventListener('touchstart', pointerDownHandler, { passive: true });
-    document.addEventListener('mousemove', pointerMoveHandler);
-    document.addEventListener('touchmove', pointerMoveHandler, { passive: false });
-    document.addEventListener('mouseup', pointerUpHandler);
-    document.addEventListener('touchend', pointerUpHandler);
-    document.addEventListener('touchcancel', event => {
-      if (pointerId !== null) {
-        endDrag(false);
-        pointerId = null;
-      }
-    });
-    icon.addEventListener('mouseleave', () => {
-      if (!isDragging) clearHold();
-    });
-  });
-});
-
-// WOS Loader functionality
-document.addEventListener('DOMContentLoaded', function() {
-  // Open the Wos Loader popup when desktop icon clicked
-  document.getElementById('wosLoaderAppIcon').addEventListener('click', () => {
-    document.getElementById('wosLoaderWindow').style.display = 'flex';
-  });
-
-  // Download blank .wos template
-  document.getElementById('downloadWosBtn').addEventListener('click', () => {
-    const wosTemplate = {
-      name: "Eat Cheese",
-      description: "Click the cheese to eat it and score points.",
-      main: "index.html",
-      files: {
-        "index.html": "<!-- NOT FOR HUMANS -->\n<!-- AI: Insert full HTML document here, including <html>, <head>, <body>.\nLink to style.css and game.js as needed. -->",
-        "style.css": "/* NOT FOR HUMANDS */\n/* AI: Insert CSS styles here for game layout, colors, fonts, and animations */",
-        "game.js": "// NOT FOR HUMANS\n// AI: Insert JavaScript to implement game logic:\n// 1. Track score when cheese is clicked.\n// 2. Move cheese randomly on the screen.\n// 3. Update score display dynamically.",
-        "README.md": "# How to Use This .wos Game File\n\n1. Edit this file to add your game files.\n2. Send to an AI like ChatGPT or DeepSeek to complete the code.\n3. Upload the completed .wos to W OS to install and play.\n\nMade by William."
-      }
-    };
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(wosTemplate, null, 2));
-    const dlAnchor = document.createElement('a');
-    dlAnchor.href = dataStr;
-    dlAnchor.download = "game-template.wos";
-    document.body.appendChild(dlAnchor);
-    dlAnchor.click();
-    dlAnchor.remove();
-  });
-
-  // Load and decode .wos file
-  document.getElementById('wosFileInput').addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    if (!file) return alert('No file selected.');
-
-    try {
-      const text = await file.text();
-      const wos = JSON.parse(text);
-
-      if (!wos.files || !wos.files['index.html']) {
-        return alert('Invalid .wos file: missing index.html');
-      }
-
-      // Remove previously injected style and script if any
-      const oldStyle = document.getElementById('wosInjectedStyle');
-      if (oldStyle) oldStyle.remove();
-      const oldScript = document.getElementById('wosInjectedScript');
-      if (oldScript) oldScript.remove();
-
-      // Inject CSS
-      if (wos.files['style.css']) {
-        const styleTag = document.createElement('style');
-        styleTag.id = 'wosInjectedStyle';
-        styleTag.textContent = wos.files['style.css'];
-        document.head.appendChild(styleTag);
-      }
-
-      // Inject JS
-      if (wos.files['game.js']) {
-        const scriptTag = document.createElement('script');
-        scriptTag.id = 'wosInjectedScript';
-        scriptTag.textContent = wos.files['game.js'];
-        document.body.appendChild(scriptTag);
-      }
-
-      // Parse index.html body content
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(wos.files['index.html'], 'text/html');
-      const bodyContent = doc.body ? doc.body.innerHTML : wos.files['index.html'];
-
-      // Show game/app inside container
-      const container = document.getElementById('wosAppContainer');
-      container.innerHTML = bodyContent;
-
-    } catch (err) {
-      alert('Failed to load .wos file: ' + err.message);
-      console.error(err);
-    }
-  });
-});
-
-// Handle welcome 
-    // Background music and hover sound
-    document.addEventListener('DOMContentLoaded', function() {
-      // Play hover sound when hovering over app icons
-      const appIcons = document.querySelectorAll('.app-icon');
-      const hoverSound = document.getElementById('hoverSound');
-      
-      appIcons.forEach(icon => {
-        icon.addEventListener('mouseenter', () => {
-          hoverSound.currentTime = 0; // Rewind to start if already playing
-          hoverSound.play().catch(e => console.log('Could not play hover sound:', e));
-        });
-      });
-    
-    const welcomeScreen = document.getElementById('welcome-screen');
-    const bgMusic = document.getElementById('bgMusic');
-    let audioStarted = false;
-    
-    // Function to start audio
-    function startAudio() {
-        if (audioStarted) return;
-        audioStarted = true;
-        
-        bgMusic.volume = 0.5;
-        bgMusic.play().catch(e => {
-            console.log('Audio play failed:', e);
-            // Show a message to the user to interact with the page
-            if (!document.querySelector('.play-message')) {
-                const msg = document.createElement('div');
-                msg.className = 'play-message';
-                msg.textContent = 'Click anywhere to enable sound';
-                msg.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(0,0,0,0.8);
-                    color: white;
-                    padding: 10px 20px;
-                    border-radius: 20px;
-                    z-index: 2000;
-                    cursor: pointer;
-                `;
-                msg.onclick = () => bgMusic.play().catch(console.error);
-                document.body.appendChild(msg);
-            }
-        });
-    }
-    
-    // Try to start audio on any of these events
-    const events = ['click', 'touchstart', 'keydown', 'mousedown'];
-    events.forEach(event => {
-        document.addEventListener(event, startAudio, { once: true });
-    });
-    
-    // Also try to start after a short delay (some browsers allow this)
-    setTimeout(startAudio, 1000);
-    
-    // Function to remove play message if it exists
-    function removePlayMessage() {
-        const playMsg = document.querySelector('.play-message');
-        if (playMsg) {
-            playMsg.remove();
-        }
-    }
-    
-    // Start fade out after 5 seconds
-    setTimeout(() => {
-        welcomeScreen.classList.add('fade-out');
-        
-        // Remove from DOM after animation completes
-        setTimeout(() => {
-            welcomeScreen.style.display = 'none';
-            removePlayMessage(); // Remove play message when welcome screen fades
-        }, 2000);
-    }, 5000);
-});
-
-// Handle tab visibility changes
-document.addEventListener('visibilitychange', function() {
-  const music = document.getElementById('bgMusic');
-  if (document.hidden) {
-    music.pause();
-  } else {
-    music.play().catch(e => console.log('Playback failed:', e));
-  }
-});
-
-// Start playing music when page loads
-window.onload = function() {
-  const bgMusic = document.getElementById('bgMusic');
-  
-  // Handle music playback
-  function handleFirstInteraction() {
-    bgMusic.muted = false;
-    try {
-      bgMusic.play();
-    } catch (e) {
-      console.error("Audio playback failed:", e);
-    }
-    document.removeEventListener('click', handleFirstInteraction);
-    document.removeEventListener('keydown', handleFirstInteraction);
-  }
-  
-  // Start music on first interaction
-  document.addEventListener('click', handleFirstInteraction);
-  document.addEventListener('keydown', handleFirstInteraction);
-  
-  // Unmute and play after user interaction
-  function handleFirstInteraction() {
-    bgMusic.muted = false;
-    bgMusic.loop = true; // Ensure the music loops
-    
-    try {
-      const playPromise = bgMusic.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error("Playback failed:", error);
-        }).then(() => {
-          // Start checking time when playback starts
-          setInterval(checkMusicTime, 200); // Check every 200ms
-        });
-      }
-    } catch (e) {
-      console.error("Audio playback failed:", e);
-    }
-    
-    document.removeEventListener('click', handleFirstInteraction);
-    document.removeEventListener('keydown', handleFirstInteraction);
-  }
-
-  document.addEventListener('click', handleFirstInteraction);
-  document.addEventListener('keydown', handleFirstInteraction);
-  
-  // Clean up interval when leaving the page
-  window.addEventListener('beforeunload', () => {
-    if (animationInterval) clearInterval(animationInterval);
-  });
-};
-
-function openApp(appName) {
-    // Handle special cases first
-    if (appName === 'feedback') {
-        const feedbackWindow = document.getElementById('feedback');
-        if (!feedbackWindow) {
-            const windowDiv = document.createElement('div');
-            windowDiv.id = 'feedback';
-            windowDiv.className = 'window';
-            windowDiv.innerHTML = `
-                <h3>Feedback & Suggestions</h3>
-                <p>Click the button below to open Gmail and write your feedback directly:</p>
-                <button onclick="window.open('https://mail.google.com/mail/?view=cm&fs=1&to=william.home.z.liu@gmail.com&su=W+OS+Feedback', '_blank')">
-                    Open Gmail
-                </button>
-                <button onclick="closeWindow('feedback')">Close</button>
-            `;
-            document.body.appendChild(windowDiv);
-        }
-        document.getElementById('feedback').style.display = 'block';
-        return;
-    }
-
-    // Close any existing window
-    const existingWindow = document.querySelector('.window');
-    if (existingWindow) {
-        existingWindow.remove();
-    }
-    
-    // Create window
-    const window = document.createElement('div');
-    window.className = 'window';
-    window.id = appName + '-window';
-    
-    // Add close button
-    window.innerHTML = `
-        <div class="title-bar">
-            <span>${appName}</span>
-            <span class="close-btn" onclick="closeWindow('${appName}-window')">×</span>
-        </div>
-        <div class="window-content">
-            <iframe id="${appName}-frame" src="${appName}.html" frameborder="0" style="width: 100%; height: 100%;"></iframe>
-        </div>
-    `;
-    
-    document.body.appendChild(window);
-    
-    // Auto-click functionality for games
-    const gameNames = ['maze-game', 'platform_game', '3d platform', 'space'];
-    if (gameNames.some(game => appName.includes(game))) {
-        // Auto-click the middle of the iframe after a short delay
-        setTimeout(() => {
-            const frame = document.getElementById(`${appName}-frame`);
-            if (frame && frame.contentWindow) {
-                try {
-                    // Try to focus the iframe first
-                    frame.focus();
-                    
-                    // Get the center position of the iframe
-                    const rect = frame.getBoundingClientRect();
-                    const clickX = rect.left + rect.width / 2;
-                    const clickY = rect.top + rect.height / 2;
-                    
-                    // Create a click event
-                    const clickEvent = new MouseEvent('click', {
-                        view: window,
-                        bubbles: true,
-                        cancelable: true,
-                        clientX: clickX,
-                        clientY: clickY
-                    });
-                    
-                    // Dispatch the event
-                    const element = document.elementFromPoint(clickX, clickY);
-                    if (element) {
-                        element.dispatchEvent(clickEvent);
-                    }
-                    
-                    // Also try to click inside the iframe
-                    if (frame.contentDocument) {
-                        const iframeClick = new frame.contentWindow.MouseEvent('click', {
-                            view: frame.contentWindow,
-                            bubbles: true,
-                            cancelable: true,
-                            clientX: rect.width / 2,
-                            clientY: rect.height / 2
-                        });
-                        frame.contentDocument.dispatchEvent(iframeClick);
-                    }
-                } catch (e) {
-                    console.log('Auto-click failed:', e);
-                }
-            }
-        }, 1500); // Slightly longer delay to ensure the game is loaded
-    }
-}
-
-function closeWindow(windowId) {
-    const window = document.getElementById(windowId);
-    if (window) {
-        window.style.display = 'none';
-    }
-}
-
-function openApp(appName) {
-    const appWindow = document.getElementById(appName);
-    if (appWindow) {
-        appWindow.style.display = 'block';
-        appWindow.style.left = '100px';
-        appWindow.style.top = '100px';
-    }
-}
-
-function closeWindow(windowId) {
-    const windowElement = document.getElementById(windowId);
-    if (windowElement) {
-        windowElement.style.display = 'none';
-    }
-}
-
-function installApp() {
-    const url = document.getElementById('appUrl').value;
-    const name = document.getElementById('appName').value;
-    
-    if (!url || !name) {
-        alert('Please enter both URL and name');
-        return;
-    }
-
-    // Create new app icon
-    const newApp = document.createElement('div');
-    newApp.className = 'app-icon';
-    newApp.innerHTML = `
-        <span style="font-size: 24px; margin-bottom: 5px;">${name[0]}</span>
-        <div class="app-label">${name}</div>
-    `;
-    newApp.onclick = () => window.open(url, '_blank');
-    document.getElementById('desktop').appendChild(newApp);
-
-    // Save to localStorage
-    let installedApps = JSON.parse(localStorage.getItem('installedApps') || '[]');
-    installedApps.push({name: name, url: url});
-    localStorage.setItem('installedApps', JSON.stringify(installedApps));
-
-    // Clear input fields
-    document.getElementById('appUrl').value = '';
-    document.getElementById('appName').value = '';
-}
-
-// Load saved apps when page loads
-window.onload = function() {
-    const installedApps = JSON.parse(localStorage.getItem('installedApps') || '[]');
-    installedApps.forEach(app => {
-        const newApp = document.createElement('div');
-        newApp.className = 'app-icon';
-        newApp.innerHTML = `
-            <span style="font-size: 24px; margin-bottom: 5px;">${app.name[0]}</span>
-            <div class="app-label">${app.name}</div>
-        `;
-        newApp.onclick = () => window.open(app.url, '_blank');
-        document.getElementById('desktop').appendChild(newApp);
-    });
-};
-// Background upload functionality
-const bgUpload = document.getElementById('bg-upload');
-const body = document.body;
-const savedBg = localStorage.getItem('customBackground');
-
-if (bgUpload) {
-    bgUpload.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        // Check if file is an image
-        if (!file.type.match('image.*')) {
-            alert('Please select an image file');
+    function openApp(event, url) {
+        if (wasDragged) {
+            wasDragged = false; 
             return;
         }
-        
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            // Apply to body background
-            body.style.backgroundImage = `url('${event.target.result}')`;
-            body.style.backgroundSize = 'cover';
-            body.style.backgroundPosition = 'center';
-            body.style.backgroundRepeat = 'no-repeat';
-            
-            // Save to localStorage
-            localStorage.setItem('customBackground', event.target.result);
-        };
-        reader.readAsDataURL(file);
-    });
-}
+        window.open(url, '_blank');
+    }
 
-// Load saved background if exists
-if (savedBg) {
-    body.style.backgroundImage = `url('${savedBg}')`;
-    body.style.backgroundSize = 'cover';
-    body.style.backgroundPosition = 'center';
-    body.style.backgroundRepeat = 'no-repeat';
-}
+    function bootSystem() {
+      if (hasBooted) return;
+      hasBooted = true;
 
+      const bgMusic = document.getElementById('bgMusic');
+      const startupSound = document.getElementById('startupSound');
+      const welcome = document.getElementById('welcome-screen');
+      
+      // Play startup sound effect
+      startupSound.play().catch(e => console.log("Startup audio blocked:", e));
+      
+      // Play loop music 
+      bgMusic.play().catch(e => console.log("BG audio blocked:", e));
+      
+      // Animation transition
+      welcome.classList.add('fade-out');
+      setTimeout(() => {
+        welcome.style.display = 'none';
+        loadIconPositions();
+      }, 1000);
 
-// Main DOMContentLoaded event handler
-document.addEventListener("DOMContentLoaded", function () {
-    // Store app data
-    const apps = [
-        { name: 'Maze Game', icon: '🎮', background: '', path: 'maze-game' },
-        { name: 'Platform Game', icon: '🕹️', background: '', path: 'platform_game.HTML' },
-        { name: 'Only Up', icon: '↑', background: '', path: '3d platform.html' },
-        { name: 'AI Chat', icon: '🤖', background: '', path: 'smart-chat.html' },
-        { name: 'W Trandaleter', icon: 'OAD', background: '', path: 'wtrandsleter.html' },
-        { name: 'Space Ranger', icon: '🚀', background: '', path: 'space.html' },
-        { name: 'Jelly Game', icon: '🍯', background: '', path: 'jelly.html' },
-        { name: 'Only Jump', icon: '↑', background: '', path: 'only jump.html' },
-        { name: 'Snake Game', icon: '🐍', background: '', path: 'snake.html' },
-        { name: 'Flying Game', icon: '🛬', background: '', path: 'flying.html' },
-        { name: 'Math Game', icon: '📊', background: '', path: 'math.html' }
-    ];
+      // Stop the visualizer animation loop
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+    }
 
-    // Initialize app icons with stored backgrounds
-    apps.forEach(app => {
-        const appIcon = document.querySelector(`.app-icon:has([onclick*="${app.path}"])`);
-        if (app.background) {
-            appIcon.style.backgroundImage = `url('${app.background}')`;
-        }
-    });
-    // Prevent browser context menu
-    document.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
+    icons.forEach(icon => {
+      icon.addEventListener('mouseenter', () => {
+        const hoverSound = document.getElementById('hoverSound');
+        hoverSound.currentTime = 0;
+        hoverSound.play().catch(() => {});
+      });
     });
 
-    // Context menu functionality
-    let currentContextMenuTarget = null;
+    const canvas = document.getElementById('welcome-visualizer');
+    const ctx = canvas.getContext('2d');
+    let time = 0;
+    let animFrameId;
 
-    // Set volume to 150%
-    const bgMusic = document.getElementById('bgMusic');
-    const hoverSound = document.getElementById('hoverSound');
-    if (bgMusic) bgMusic.volume = 1;
-    if (hoverSound) hoverSound.volume = 1;
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-    function showContextMenu(e, target) {
-        // Prevent browser context menu
-        e.preventDefault();
-        e.stopPropagation();
-        const contextMenu = document.getElementById('appContextMenu');
-        contextMenu.style.display = 'block';
-        contextMenu.style.left = `${e.clientX}px`;
-        contextMenu.style.top = `${e.clientY}px`;
-        currentContextMenuTarget = target;
+    function drawVisualizer() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        time += 0.01;
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, `hsl(${Math.sin(time * 0.5) * 20 + 200}, 80%, 10%)`);
+        gradient.addColorStop(1, `hsl(${Math.cos(time * 0.7) * 20 + 260}, 80%, 5%)`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        animFrameId = requestAnimationFrame(drawVisualizer);
+    }
+    drawVisualizer();
+
+    function dragStart(e) {
+      if (e.button !== 0) return; 
+
+      const targetIcon = e.target.closest('.app-icon');
+      if (!targetIcon) return;
+
+      dragElement = targetIcon;
+      const rect = dragElement.getBoundingClientRect();
+      
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+
+      holdTimer = setTimeout(() => {
+          isDragging = true;
+          wasDragged = true;
+          dragElement.classList.add('dragging');
+          dragElement.style.position = 'fixed';
+          moveIcon(e.clientX, e.clientY);
+      }, 250); 
     }
 
-    function hideContextMenu() {
-        const contextMenu = document.getElementById('appContextMenu');
-        contextMenu.style.display = 'none';
-        currentContextMenuTarget = null;
+    function moveIcon(x, y) {
+      if (!dragElement) return;
+      dragElement.style.left = (x - offsetX) + 'px';
+      dragElement.style.top = (y - offsetY) + 'px';
     }
 
-    function deleteApp() {
-        if (confirm('Are you sure you want to delete this app?')) {
-            if (currentContextMenuTarget) {
-                currentContextMenuTarget.remove();
-                hideContextMenu();
-            }
+    function dragMove(e) {
+      if (isDragging) {
+        moveIcon(e.clientX, e.clientY);
+      }
+    }
+
+    function dragEnd() {
+      clearTimeout(holdTimer);
+      if (isDragging) {
+        isDragging = false;
+        dragElement.classList.remove('dragging');
+        saveIconPositions();
+      }
+      dragElement = null;
+    }
+
+    desktop.addEventListener('mousedown', dragStart);
+    window.addEventListener('mousemove', dragMove);
+    window.addEventListener('mouseup', dragEnd);
+
+    function saveIconPositions() {
+      const positions = {};
+      icons.forEach(icon => {
+        if (icon.style.left) {
+          positions[icon.dataset.name] = {
+            left: icon.style.left,
+            top: icon.style.top
+          };
         }
+      });
+      localStorage.setItem('wos_icon_positions_v3', JSON.stringify(positions));
     }
 
-    function changeIcon() {
-        if (currentContextMenuTarget) {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/png, image/jpeg';
-            fileInput.onchange = function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        currentContextMenuTarget.querySelector('.app-icon-img').src = event.target.result;
-                        hideContextMenu();
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-            fileInput.click();
-        }
-    }
-
-    function changeBackground() {
-        if (currentContextMenuTarget) {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/png, image/jpeg';
-            fileInput.onchange = function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        currentContextMenuTarget.style.backgroundImage = `url('${event.target.result}')`;
-                        hideContextMenu();
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-            fileInput.click();
-        }
-    }
-
-    function showWStore() {
-        const wStore = document.getElementById('wStore');
-        const appList = wStore.querySelector('.app-list');
-        
-        // Clear existing apps
-        appList.innerHTML = '';
-        
-        // Add all apps to the store
-        apps.forEach(app => {
-            const appElement = document.createElement('div');
-            appElement.className = 'store-app';
-            appElement.innerHTML = `
-                <img src="${app.icon}" alt="${app.name} Icon" class="store-app-icon">
-                <div class="store-app-label">${app.name}</div>
-                <button onclick="editApp('${app.name}')">Edit</button>
-            `;
-            appList.appendChild(appElement);
+    function loadIconPositions() {
+      const positions = JSON.parse(localStorage.getItem('wos_icon_positions_v3'));
+      if (positions) {
+        icons.forEach(icon => {
+          const data = positions[icon.dataset.name];
+          if (data) {
+            icon.style.position = 'fixed';
+            icon.style.left = data.left;
+            icon.style.top = data.top;
+          }
         });
-
-        wStore.style.display = 'block';
+      }
     }
 
-    function closeWStore() {
-        document.getElementById('wStore').style.display = 'none';
-    }
-
-    function editApp(appName) {
-        const app = apps.find(a => a.name === appName);
-        if (app) {
-            // Show edit modal or navigate to edit page
-            alert('Editing ' + appName);
-        }
-    }
-
-    document.addEventListener('click', hideContextMenu);
-    
-    document.addEventListener('contextmenu', (e) => {
-        if (!e.target.closest('.app-icon')) {
-            hideContextMenu();
-        }
-    });
-
-    const desktop = document.getElementById("desktop");
-    const backgroundPreview = document.getElementById('background-preview');
-    
-    // Function to set background with high quality
-    function setBackground(imageUrl) {
-        const img = new Image();
-        img.onload = function() {
-            // Create a canvas to potentially resize the image if needed
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Limit the maximum dimension to 4K (3840px) while maintaining aspect ratio
-            let width = img.width;
-            let height = img.height;
-            const maxDimension = 3840;
-            
-            if (width > height && width > maxDimension) {
-                height = Math.round((height * maxDimension) / width);
-                width = maxDimension;
-            } else if (height > maxDimension) {
-                width = Math.round((width * maxDimension) / height);
-                height = maxDimension;
-            }
-            
-            // Set canvas dimensions
-            canvas.width = width;
-            canvas.height = height;
-            
-            // Draw image on canvas with high quality
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Convert canvas to data URL
-            const resizedImageUrl = canvas.toDataURL('image/jpeg', 0.9);
-            
-            // Apply the background
-            backgroundPreview.style.backgroundImage = `url('${resizedImageUrl}')`;
-            backgroundPreview.style.display = 'block';
-            
-            // Save to localStorage
-            localStorage.setItem('customBackground', resizedImageUrl);
-        };
-        img.src = imageUrl;
-    }
-    
-    // Load saved background if exists
-    const savedBg = localStorage.getItem('customBackground');
-    if (savedBg) {
-        setBackground(savedBg);
-    }
-    
-    // Handle background image upload
-    const bgUpload = document.getElementById('bg-upload');
-    if (bgUpload) {
-        bgUpload.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            // Check if file is an image
-            if (!file.type.match('image.*')) {
-                alert('Please select an image file');
-                return;
-            }
-            
+    function uploadBackground(event) {
+        const file = event.target.files[0];
+        if (file) {
             const reader = new FileReader();
-            reader.onload = function(event) {
-                setBackground(event.target.result);
-                // Reset the input to allow selecting the same file again
-                e.target.value = '';
+            reader.onload = (e) => {
+                const url = e.target.result;
+                document.body.style.backgroundImage = `url(${url})`;
+                localStorage.setItem('wos_background_image', url);
             };
             reader.readAsDataURL(file);
-        });
-    }
-
-
-
-    function openWindow(id) {
-        document.getElementById(id).style.display = "flex";
-    }
-
-    window.closeWindow = function (id) {
-        document.getElementById(id).style.display = "none";
-    };
-
-    window.changeWallpaper = function () {
-        const randomColor = "#" + Math.floor(Math.random() * 16777215).toString(16);
-        document.body.style.background = randomColor;
-        backgroundPreview.style.display = 'none';
-        // Remove saved background when using random color
-        localStorage.removeItem('customBackground');
-    };
-
-    function runCommand(event) {
-        if (event.key === "Enter") {
-            const commandInput = document.getElementById("commandInput");
-            const terminalOutput = document.getElementById("terminalOutput");
-            const cmd = commandInput.value.trim();
-
-            if (cmd === "curl ascii.live/rick") {
-                terminalOutput.innerText = "🎵 Never gonna give you up! 🎵";
-            } else if (cmd === "curl ascii.live/parrot") {
-                terminalOutput.innerText = "🦜 Dancing Parrot! 🦜";
-            } else {
-                terminalOutput.innerText = "Command not found";
-            }
-            commandInput.value = "";
         }
+        toggleSettingsMenu();
     }
-    
 
-    window.performSearch = function () {
-        const query = document.getElementById("aiSearchInput").value.trim();
-        if (!query) return;
-        document.getElementById("aiSearchResults").innerHTML = `Opening search for "<b>${query}</b>"...`;
-        window.open(`https://www.bing.com/search?q=${encodeURIComponent(query)}`, "_blank");
-    };
-
-
-    createIcon("Chrome Browser", () => {
-        const url = prompt("Enter URL:");
-        if (url) {
-            let finalUrl = url.startsWith("http") ? url : "https://" + url;
-            window.open(finalUrl, "_blank", "noopener,noreferrer");
-        }
-    });
-
-    createIcon("Snake Game", () => {
-        window.open("snake.html", "_blank", "width=400,height=400");
-    });
-
-
-
-    createIcon("Punctuation Game", () => {
-        window.open("puntuation.html", "_blank", "width=800,height=600");
-    });
-});
-function openApp(appName) {
-    if (appName === 'maze-game') {
-        window.open('maze-game.html', '_blank');
-    } else if (appName === 'jelly') {
-        // Create the window for Jelly Bounce
-        const window = document.createElement('div');
-        window.className = 'window';
-        window.id = 'jellyWindow';
-        
-        const closeButton = document.createElement('button');
-        closeButton.textContent = 'X';
-        closeButton.onclick = () => window.remove();
-        
-        const title = document.createElement('h3');
-        title.textContent = 'Jelly Bounce';
-        
-        window.appendChild(title);
-        window.appendChild(closeButton);
-        document.body.appendChild(window);
-        
-        // Add draggable functionality
-        window.style.cursor = 'move';
-        window.style.position = 'fixed';
-        window.style.top = '50px';
-        window.style.left = '50px';
-        window.style.width = '800px';
-        window.style.height = '600px';
-        window.style.borderRadius = '5px';
-        window.style.padding = '10px';
-        window.style.backgroundColor = 'white';
-        window.style.boxShadow = '0 0 10px rgba(0,0,0,0.3)';
-        window.style.zIndex = '1000';
-        
-        let isDragging = false;
-        let offsetX, offsetY;
-        
-        window.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            offsetX = e.clientX - window.offsetLeft;
-            offsetY = e.clientY - window.offsetTop;
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                window.style.left = (e.clientX - offsetX) + 'px';
-                window.style.top = (e.clientY - offsetY) + 'px';
-            }
-        });
-        
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        // Create iframe for the game
-        const iframe = document.createElement('iframe');
-        iframe.src = 'jelly.html';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        window.appendChild(iframe);
+    function loadBackground() {
+        const saved = localStorage.getItem('wos_background_image');
+        if (saved) document.body.style.backgroundImage = `url(${saved})`;
     }
-}
 
-</script>
+    function toggleSettingsMenu() {
+        const menu = document.getElementById('settings-menu');
+        menu.style.display = (menu.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    function resetAppPositions() {
+        icons.forEach(icon => {
+            icon.style.position = '';
+            icon.style.left = '';
+            icon.style.top = '';
+        });
+        document.body.style.backgroundImage = "url('gb.png')";
+        localStorage.removeItem('wos_icon_positions_v3');
+        localStorage.removeItem('wos_background_image');
+        toggleSettingsMenu();
+    }
+  </script>
 </body>
 </html>

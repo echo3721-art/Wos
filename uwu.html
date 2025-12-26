@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Flow Field Particles — Interactive Visual (Upgraded)</title>
+<style>
+  :root{
+    --bg:#0b1020;
+    --ui-bg: rgba(255,255,255,0.06);
+    --accent: #7fffd4;
+    --glass: rgba(255,255,255,0.06);
+    --text: #e8f0ff;
+    --muted: rgba(232,240,255,0.6);
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  canvas{display:block;width:100%;height:100%;background:linear-gradient(180deg, rgba(0,0,0,0.02), transparent);}
+  .ui {
+    position: absolute; left:16px; top:16px; z-index:50;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    border-radius:12px; padding:12px; backdrop-filter: blur(6px);
+    box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+    min-width:240px;
+    transition: opacity .22s, transform .22s;
+  }
+  .ui.hidden { opacity: 0; transform: translateY(-10px) scale(.98); pointer-events:none; }
+  .ui h1{font-size:14px;margin:0 0 8px 0;letter-spacing:0.6px}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px 0}
+  input[type=range]{width:100%}
+  .row{display:flex;gap:8px;align-items:center}
+  .btn{
+    display:inline-block;padding:8px 10px;border-radius:8px;background:var(--accent);color:#052;cursor:pointer;font-weight:600;border:none;
+  }
+  .small{font-size:12px;padding:6px 8px;border-radius:8px;background:var(--ui-bg);border:1px solid rgba(255,255,255,0.04);color:var(--text)}
+  .muted{color:var(--muted);font-size:12px}
+  .footer-ui{position:absolute;right:16px;bottom:16px;padding:8px 12px;border-radius:10px;background:var(--glass);backdrop-filter: blur(6px);border:1px solid rgba(255,255,255,0.03)}
+  .palette {display:flex;gap:6px;margin-top:8px}
+  .sw{width:28px;height:18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.06)}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  kbd{background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:6px;font-size:11px}
+  @media (max-width:520px){
+    .ui{left:8px;right:8px;top:8px}
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui" id="panel">
+  <h1>Flow Field — Interactive Visual</h1>
+  <div class="muted">Move mouse/touch to stir. Hold mouse to attract, hold <kbd>Shift</kbd> to repel. Press <kbd>G</kbd> to hide/show controls.</div>
+
+  <label>Particles: <span id="particlesCountLabel">1200</span></label>
+  <input id="particlesRange" type="range" min="200" max="20000" value="1200" step="50">
+
+  <label>Speed: <span id="speedLabel">1.0</span></label>
+  <input id="speedRange" type="range" min="0.1" max="12" step="0.1" value="1.0">
+
+  <label>Trail (fade): <span id="fadeLabel">0.15</span></label>
+  <input id="fadeRange" type="range" min="0.01" max="0.8" step="0.01" value="0.15">
+
+  <label>Particle size: <span id="sizeLabel">1.2</span></label>
+  <input id="sizeRange" type="range" min="0.4" max="6" step="0.1" value="1.2">
+
+  <label>Hue spread: <span id="hueSpreadLabel">120</span></label>
+  <input id="hueSpreadRange" type="range" min="20" max="720" step="1" value="120">
+
+  <label>Saturation: <span id="saturationLabel">80</span>%</label>
+  <input id="saturationRange" type="range" min="0" max="100" step="1" value="80">
+
+  <label>Mouse Force Field: <span id="forceLabel">2.0</span>x</label>
+  <input id="forceRange" type="range" min="0.2" max="12" step="0.1" value="2">
+
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button id="regenBtn" class="small">Regenerate</button>
+    <button id="screenshotBtn" class="btn">Save PNG</button>
+  </div>
+
+  <div class="palette" style="margin-top:10px">
+    <div class="sw" style="background:linear-gradient(90deg,#6EE7B7,#3B82F6)" title="Teal-Blue" data-pal="tealBlue"></div>
+    <div class="sw" style="background:linear-gradient(90deg,#FF6B6B,#FFD93D)" title="Sunset" data-pal="sunset"></div>
+    <div class="sw" style="background:linear-gradient(90deg,#C4A3FF,#75B6FF)" title="Lilac-Cyan" data-pal="lilac"></div>
+    <div class="sw" style="background:linear-gradient(90deg,#76F9B9,#3A9BE8)" title="Aqua" data-pal="aqua"></div>
+  </div>
+
+  <div class="hint">Tip: press <kbd>R</kbd> to regen, <kbd>Space</kbd> to pause.</div>
+</div>
+
+<div class="footer-ui muted">FPS: <span id="fps">--</span></div>
+
+<script>
+(() => {
+  // Canvas setup
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  let W = 0, H = 0;
+
+  function resize(){
+    DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    W = Math.floor(innerWidth);
+    H = Math.floor(innerHeight);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0b1020';
+    ctx.fillRect(0,0,W,H);
+  }
+  window.addEventListener('resize', resize, { passive: true });
+  resize();
+
+  // Utility: simple smooth random (value noise)
+  class ValueNoise {
+    constructor(seed = 1337){
+      this.seed = seed;
+      this.perm = new Uint8Array(512);
+      this._init();
+    }
+    _init(){
+      let p = new Uint8Array(256);
+      for (let i=0;i<256;i++) p[i]=i;
+      let s = this.seed;
+      for (let i=255;i>0;i--){
+        s = (s * 1664525 + 1013904223) | 0;
+        let r = (s >>> 0) % (i+1);
+        let t = p[i];
+        p[i] = p[r];
+        p[r] = t;
+      }
+      for (let i=0;i<512;i++) this.perm[i]=p[i & 255];
+    }
+    fade(t){ return t*t*(3-2*t); }
+    lerp(a,b,t){ return a + (b-a)*t; }
+    get(x,y){
+      const X = Math.floor(x) & 255;
+      const Y = Math.floor(y) & 255;
+      const xf = x - Math.floor(x);
+      const yf = y - Math.floor(y);
+      const a = this.perm[X + this.perm[Y]];
+      const b = this.perm[X+1 + this.perm[Y]];
+      const c = this.perm[X + this.perm[Y+1]];
+      const d = this.perm[X+1 + this.perm[Y+1]];
+      const va = a / 255, vb = b/255, vc = c/255, vd = d/255;
+      const u = this.fade(xf);
+      const v = this.fade(yf);
+      const x1 = this.lerp(va, vb, u);
+      const x2 = this.lerp(vc, vd, u);
+      return this.lerp(x1, x2, v);
+    }
+  }
+
+  // Global parameters (controlled by UI)
+  const params = {
+    particleCount: 1200,
+    speed: 1.0,
+    fade: 0.15,
+    size: 1.2,
+    hueSpread: 120,
+    palette: 'tealBlue',
+    saturation: 80,
+    mouseForce: 2,
+    paused: false
+  };
+
+  // UI hookup
+  const ui = {
+    particlesRange: document.getElementById('particlesRange'),
+    particlesCountLabel: document.getElementById('particlesCountLabel'),
+    speedRange: document.getElementById('speedRange'),
+    speedLabel: document.getElementById('speedLabel'),
+    fadeRange: document.getElementById('fadeRange'),
+    fadeLabel: document.getElementById('fadeLabel'),
+    sizeRange: document.getElementById('sizeRange'),
+    sizeLabel: document.getElementById('sizeLabel'),
+    hueSpreadRange: document.getElementById('hueSpreadRange'),
+    hueSpreadLabel: document.getElementById('hueSpreadLabel'),
+    saturationRange: document.getElementById('saturationRange'),
+    saturationLabel: document.getElementById('saturationLabel'),
+    forceRange: document.getElementById('forceRange'),
+    forceLabel: document.getElementById('forceLabel'),
+    regenBtn: document.getElementById('regenBtn'),
+    screenshotBtn: document.getElementById('screenshotBtn'),
+    fpsEl: document.getElementById('fps'),
+    paletteEls: document.querySelectorAll('.sw'),
+    panel: document.getElementById('panel')
+  };
+
+  // initialize UI values
+  ui.particlesRange.value = params.particleCount;
+  ui.particlesCountLabel.textContent = params.particleCount;
+  ui.speedRange.value = params.speed;
+  ui.speedLabel.textContent = params.speed.toFixed(1);
+  ui.fadeRange.value = params.fade;
+  ui.fadeLabel.textContent = params.fade.toFixed(2);
+  ui.sizeRange.value = params.size;
+  ui.sizeLabel.textContent = params.size.toFixed(1);
+  ui.hueSpreadRange.value = params.hueSpread;
+  ui.hueSpreadLabel.textContent = params.hueSpread;
+  ui.saturationRange.value = params.saturation;
+  ui.saturationLabel.textContent = params.saturation;
+  ui.forceRange.value = params.mouseForce;
+  ui.forceLabel.textContent = params.mouseForce.toFixed(1);
+
+  // UI event listeners
+  ui.particlesRange.addEventListener('input', e=>{
+    params.particleCount = +e.target.value;
+    ui.particlesCountLabel.textContent = params.particleCount;
+    initParticles();
+  });
+  ui.speedRange.addEventListener('input', e=>{
+    params.speed = +e.target.value;
+    ui.speedLabel.textContent = params.speed.toFixed(1);
+  });
+  ui.fadeRange.addEventListener('input', e=>{
+    params.fade = +e.target.value;
+    ui.fadeLabel.textContent = params.fade.toFixed(2);
+  });
+  ui.sizeRange.addEventListener('input', e=>{
+    params.size = +e.target.value;
+    ui.sizeLabel.textContent = params.size.toFixed(1);
+  });
+  ui.hueSpreadRange.addEventListener('input', e=>{
+    params.hueSpread = +e.target.value;
+    ui.hueSpreadLabel.textContent = params.hueSpread;
+  });
+  ui.saturationRange.addEventListener('input', e=>{
+    params.saturation = +e.target.value;
+    ui.saturationLabel.textContent = params.saturation;
+  });
+  ui.forceRange.addEventListener('input', e=>{
+    params.mouseForce = +e.target.value;
+    ui.forceLabel.textContent = params.mouseForce.toFixed(1);
+  });
+
+  ui.regenBtn.addEventListener('click', regen);
+  ui.screenshotBtn.addEventListener('click', savePNG);
+
+  ui.paletteEls.forEach(el=>{
+    el.addEventListener('click', ()=> {
+      const pal = el.dataset.pal;
+      params.palette = pal;
+      regen();
+    });
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); params.paused = !params.paused; }
+    if (e.key.toLowerCase() === 'r') regen();
+    if (e.key.toLowerCase() === 'g') ui.panel.classList.toggle('hidden');
+  });
+
+  // Flow field & particles
+  let noise = new ValueNoise(Math.floor(Math.random()*999999));
+  let particles = [];
+  let ticks = 0;
+  let lastTime = performance.now();
+  let fpsCounter = { last: performance.now(), frames: 0 };
+
+  function initParticles(){
+    particles = new Array(params.particleCount);
+    for (let i=0;i<params.particleCount;i++){
+      particles[i] = {
+        x: Math.random()*W || (innerWidth/2),
+        y: Math.random()*H || (innerHeight/2),
+        vx: 0, vy: 0,
+        life: Math.random()*100 + 100,
+        hueOffset: Math.random()
+      };
+    }
+  }
+
+  // Palette helper (uses params.saturation)
+  const palettes = {
+    tealBlue: (t)=> {
+      const h = (160 + params.hueSpread * (Math.sin(t*2*Math.PI*1.5)+1)/2) % 360;
+      const s = Math.max(0, Math.min(100, params.saturation + 10*Math.sin(t*6.28 + 1.2)));
+      const l = 55 + 10*Math.cos(t*6.28 + 0.5);
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    },
+    sunset: (t)=>{
+      const h = (20 + params.hueSpread * (0.5 + 0.5*Math.sin(t*3.7))) % 360;
+      const s = Math.max(0, Math.min(100, params.saturation + 10*Math.sin(t*5.5)));
+      const l = 55 + 12*Math.cos(t*5.5);
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    },
+    lilac: (t)=>{
+      const h = (260 + params.hueSpread * (Math.sin(t*2.3)+1)/2) % 360;
+      const s = Math.max(0, Math.min(100, params.saturation - 5 + 15*Math.cos(t*4.3)));
+      const l = 60 + 8*Math.sin(t*5.4);
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    },
+    aqua: (t)=>{
+      const h = (180 + params.hueSpread * (Math.sin(t*3.3)+1)/2) % 360;
+      const s = Math.max(0, Math.min(100, params.saturation + 8*Math.cos(t*4.1)));
+      const l = 55 + 8*Math.sin(t*6.1);
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+  };
+
+  // Mouse / touch interaction
+  const pointer = { x: W/2, y: H/2, down: false, isTouch:false };
+  window.addEventListener('pointermove', e => {
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+  }, { passive:true });
+  window.addEventListener('pointerdown', e => { pointer.down = true; pointer.isTouch = (e.pointerType === 'touch'); });
+  window.addEventListener('pointerup', e => { pointer.down = false; });
+
+  // Main animation loop
+  let raf;
+  function step(t){
+    raf = requestAnimationFrame(step);
+    if (!W || !H) resize();
+    if (params.paused) {
+      drawFrame(0.016);
+      return;
+    }
+    const now = t;
+    const dt = Math.min(0.033, (now - lastTime) / 1000);
+    lastTime = now;
+    drawFrame(dt);
+    // fps
+    fpsCounter.frames++;
+    if (now - fpsCounter.last > 500) {
+      const fps = Math.round((fpsCounter.frames * 1000) / (now - fpsCounter.last));
+      fpsCounter.last = now;
+      fpsCounter.frames = 0;
+      ui.fpsEl.textContent = fps;
+    }
+  }
+
+  // Draw frame: fade, update particles, draw
+  function drawFrame(dt){
+    ticks += dt * 60;
+
+    // Fade / trail: draw a semi-opaque rectangle to create trails
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(11,16,32, ${params.fade})`;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    const timeFactor = performance.now() * 0.0002;
+    const speed = params.speed * 0.6;
+
+    for (let i=0;i<particles.length;i++){
+      const p = particles[i];
+      const nx = p.x * 0.007 + timeFactor;
+      const ny = p.y * 0.007 - timeFactor * 0.3;
+      const n = noise.get(nx*1.6, ny*1.6);
+      const angle = n * Math.PI * 2 * 2.0 + Math.sin(ticks*0.002 + n*10)*0.8;
+
+      // mouse influence: attract/repel using params.mouseForce
+      let ax = 0, ay = 0;
+      if (pointer.down){
+        const dx = pointer.x - p.x;
+        const dy = pointer.y - p.y;
+        const dist2 = dx*dx + dy*dy + 1;
+        const dist = Math.sqrt(dist2);
+        // influence scaled by mouseForce param; clamp so it's not absurd
+        const influence = Math.min((1600 / dist2) * params.mouseForce, 6.0);
+        if (window.event && window.event.shiftKey) { // repel
+          ax = -dx/dist * influence * 3.0;
+          ay = -dy/dist * influence * 3.0;
+        } else { // attract
+          ax = dx/dist * influence * 3.0;
+          ay = dy/dist * influence * 3.0;
+        }
+      }
+
+      // velocity updated from angle (flow) + attractor
+      p.vx = p.vx*0.85 + Math.cos(angle) * speed * (0.6 + n*0.8) + ax * 0.5;
+      p.vy = p.vy*0.85 + Math.sin(angle) * speed * (0.6 + n*0.8) + ay * 0.5;
+
+      // integrate
+      p.x += p.vx * dt * 60;
+      p.y += p.vy * dt * 60;
+
+      // wrap edges
+      if (p.x < -20) p.x = W + 20;
+      if (p.x > W + 20) p.x = -20;
+      if (p.y < -20) p.y = H + 20;
+      if (p.y > H + 20) p.y = -20;
+
+      // color by palette gradient + particle property
+      const tnorm = ((p.hueOffset + ticks*0.0005) % 1 + 1) % 1;
+      ctx.beginPath();
+      const size = (params.size * (0.8 + n*0.8));
+      ctx.fillStyle = palettes[params.palette](tnorm);
+      ctx.arc(p.x, p.y, size, 0, Math.PI*2);
+      ctx.fill();
+
+      // subtle streak
+      if (Math.abs(p.vx) + Math.abs(p.vy) > 0.8){
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(p.x - size*1.6, p.y - size*1.6, size*0.4 + Math.abs(p.vx)*0.6, size*0.4 + Math.abs(p.vy)*0.6);
+        ctx.globalAlpha = 1;
+      }
+
+      // respawn occasionally
+      p.life -= 1;
+      if (p.life <= 0) {
+        p.x = Math.random()*W;
+        p.y = Math.random()*H;
+        p.vx = p.vy = 0;
+        p.life = 40 + Math.random()*200;
+      }
+    }
+  }
+
+  // Regenerate noise and particles
+  function regen(){
+    noise = new ValueNoise(Math.floor(Math.random()*999999));
+    initParticles();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(11,16,32,1)';
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Screenshot
+  function savePNG(){
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `flowfield_${Date.now()}.png`;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  // Initialize and start
+  initParticles();
+  regen();
+  raf = requestAnimationFrame(step);
+
+  // expose for debugging
+  window.__flow = { params, regen, savePNG };
+
+})();
+</script>
+</body>
+</html>

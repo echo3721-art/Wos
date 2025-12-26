@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ATN & NTA Trandaleter</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f0f8ff;
+      color: #333;
+      padding: 20px;
+      text-align: center;
+    }
+    textarea {
+      width: 90%;
+      height: 100px;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+    }
+    .output {
+      margin-top: 20px;
+      font-weight: bold;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>ATN & NTA Trandaleter</h1>
+  <hi>by william</h1>
+  <textarea id="inputText" placeholder="Type your message here..."></textarea><br>
+
+  <button onclick="translateToATN()">Translate to ATN</button>
+  <button onclick="translateToNTA()">Translate to NTA</button>
+
+  <div class="output" id="outputText"></div>
+
+  <script>
+    function translateToATN() {
+      const text = document.getElementById("inputText").value.toUpperCase();
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      let result = "";
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (alphabet.includes(char)) {
+          const num = alphabet.indexOf(char) + 1;
+          result += "0" + num;
+        } else if (char === " ") {
+          result += "00";
+        }
+      }
+      result += "0";
+      document.getElementById("outputText").innerText = "ATN:\n" + result;
+    }
+
+    function translateToNTA() {
+      const code = document.getElementById("inputText").value.trim();
+      const parts = code.split("0").filter(p => p !== "");
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      let result = "";
+
+      for (let i = 0; i < parts.length; i++) {
+        if (parts[i] === "") continue;
+        const num = parseInt(parts[i]);
+        if (isNaN(num)) continue;
+        if (num === 0) {
+          result += " ";
+        } else if (num >= 1 && num <= 26) {
+          result += alphabet[num - 1];
+        }
+      }
+      document.getElementById("outputText").innerText = "NTA:\n" + result;
+    }
+  </script>
+</body>
+</html>

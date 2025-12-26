@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="edu.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EduGames — Learning Playground (Kotaro)</title>
+<style>
+:root{
+  --sky1:#e6f4ff;--sky2:#dff4ff;--blue1:#56aaff;--blue2:#8cd3ff;--navy:#003366;--sun:#ffd84d;--card:#ffffff;--accent:#ffd84d;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;font-family:Inter, 'Comic Sans MS', system-ui, sans-serif;
+  background:linear-gradient(180deg,var(--sky1),var(--sky2));color:var(--navy);min-height:100vh;overflow-x:hidden;
+}
+/* clouds */
+.cloud{position:fixed;border-radius:50%;background:rgba(255,255,255,0.85);box-shadow:0 6px 30px rgba(0,0,0,0.06);z-index:0}
+.c1{width:260px;height:90px;left:6%;top:6%}
+.c2{width:160px;height:60px;right:6%;top:12%}
+.c3{width:200px;height:80px;left:62%;top:4%}
+/* header */
+.header{position:sticky;top:0;z-index:10;background:transparent;display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
+.brand{display:flex;align-items:center;gap:10px}
+.backBtn{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.95);padding:8px 10px;border-radius:12px;border:0;box-shadow:0 6px 18px rgba(0,0,0,0.06);cursor:pointer;opacity:0;transform:translateY(-6px);transition:all 260ms ease;}
+.backBtn.visible{opacity:1;transform:translateY(0)}
+.backBtn:hover{transform:translateY(-3px) scale(1.02)}
+.logoMini{font-weight:900;font-size:16px}
+.headerControls{display:flex;align-items:center;gap:8px}
+.settingsBtn{padding:8px 10px;border-radius:10px;border:0;background:linear-gradient(180deg,var(--blue2),var(--blue1));color:white;font-weight:700;cursor:pointer}
+.soundBtn{padding:8px 10px;border-radius:10px;border:0;background:white;color:var(--navy);font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+/* main */
+.container{padding:18px;max-width:1200px;margin:6px auto 100px;position:relative;z-index:5}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 12px 36px rgba(0,30,80,0.06);text-align:center}
+.card h3{margin:6px 0}
+.btn{display:inline-block;padding:12px 16px;border-radius:12px;background:linear-gradient(180deg,var(--blue2),var(--blue1));color:white;font-weight:800;cursor:pointer;text-decoration:none;border:3px solid rgba(255,255,255,0.4);box-shadow:0 8px 28px rgba(0,0,0,0.08)}
+.btn.small{padding:8px 10px;border-radius:8px;font-weight:700}
+.hint{font-size:13px;color:rgba(0,51,102,0.7)}
+.section{margin-top:18px}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
+.letter{border-radius:8px;padding:12px;font-weight:800;font-size:20px;background:#f3fbff;border:2px solid rgba(86,170,255,0.2);text-align:center}
+.hidden{display:none}
+/* inputs & logs */
+.input{padding:10px;border-radius:10px;border:2px solid rgba(86,170,255,0.2);width:220px}
+.game-controls{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:12px}
+.log{height:120px;overflow:auto;background:#f8feff;padding:8px;border-radius:8px;border:1px dashed rgba(86,170,255,0.2);text-align:left}
+.small-card{background:linear-gradient(180deg,#fff,#f7fdff);padding:8px;border-radius:10px}
+/* memory */
+.memoryGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.cardBtn{padding:12px;border-radius:10px;background:#fff;border:1px solid rgba(0,0,0,0.06);cursor:pointer}
+/* settings modal */
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:white;border-radius:12px;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,0.2);z-index:1200;width:320px}
+.modal.hidden{display:none}
+.row{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
+.theme-dark{background:linear-gradient(180deg,#0b2a4a,#06324a);color:#dff4ff}
+/* confetti */
+.confetti{position:fixed;pointer-events:none;left:0;top:0;width:100%;height:100%;z-index:999}
+/* footer fixed */
+.footer{position:fixed;left:0;right:0;bottom:0;padding:12px 8px;background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.95));text-align:center;box-shadow:0 -6px 20px rgba(0,0,0,0.04);font-weight:700}
+.footer .small{font-weight:600;color:rgba(0,40,80,0.7)}
+/* transitions */
+.fadeIn{animation:fadeIn 260ms ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+
+  <header class="header">
+    <div class="brand">
+      <button id="goBack" class="backBtn" aria-label="Go back">⬅️ <span class="logoMini">EduGames ✨</span></button>
+    </div>
+    <div class="headerControls">
+      <button id="openSettings" class="settingsBtn">⚙️ Settings</button>
+      <button id="toggleSound" class="soundBtn">🔈 Sound: On</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="home" class="card section fadeIn">
+      <div class="grid">
+        <div class="card">
+          <h3>🎯 Daily Word Challenge (EduWord)</h3>
+          <p class="hint">A new word to guess every day. 6 tries — kid-friendly Wordle.</p>
+          <div class="game-controls"><button id="openWord" class="btn">Play EduWord</button></div>
+        </div>
+        <div class="card">
+          <h3>🧮 Math Master</h3>
+          <p class="hint">Mixed multiplication & division. No remainders.</p>
+          <div class="game-controls"><button id="openMath" class="btn">Play Math</button></div>
+        </div>
+        <div class="card">
+          <h3>🔤 Spelling Bee</h3>
+          <p class="hint">Spell the word correctly to earn stars.</p>
+          <div class="game-controls"><button id="openSpell" class="btn">Play Spelling</button></div>
+        </div>
+        <div class="card">
+          <h3>🧩 Memory Match</h3>
+          <p class="hint">Flip cards and find pairs. Train your memory!</p>
+          <div class="game-controls"><button id="openMemory" class="btn">Play Memory</button></div>
+        </div>
+        <div class="card">
+          <h3>🌍 Geography Quiz</h3>
+          <p class="hint">Country flags and fun facts.</p>
+          <div class="game-controls"><button id="openGeo" class="btn">Play Geography</button></div>
+        </div>
+        <div class="card">
+          <h3>🤖 Chat with EduBot</h3>
+          <p class="hint">Offline learning buddy — answers simple questions and helps with maths.</p>
+          <div class="game-controls"><button id="openBot" class="btn">Talk to EduBot</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EduWord -->
+    <section id="eduword" class="section card hidden" aria-live="polite">
+      <h2>EduWord — Daily Word Challenge</h2>
+      <div class="hint">Guess the secret word. You have 6 tries.</div>
+      <div id="wordBoard" class="board" aria-hidden="false" style="margin-top:12px"></div>
+      <div class="game-controls">
+        <input id="wordGuess" class="input" placeholder="Type guess" autocomplete="off" />
+        <button id="submitGuess" class="btn small">Guess</button>
+        <button id="giveUp" class="btn small">Give Up</button>
+        <button id="closeWord" class="btn small">Back</button>
+      </div>
+      <div id="wordMessages" class="log"></div>
+    </section>
+
+    <!-- Math -->
+    <section id="math" class="section card hidden">
+<button onclick="window.location.href='s.html'">So Boring 😴</button>
+      <h2>Math Master</h2>
+      <div class="hint">Correct answers auto-advance. Press Enter to submit.</div>
+      <div id="mathProblem" style="font-size:36px;font-weight:800;text-align:center;padding:12px">Press Next</div>
+      <div class="game-controls">
+        <input id="mathAnswer" class="input" type="number" placeholder="Your answer" />
+        <button id="mathSubmit" class="btn small">Submit</button>
+        <button id="mathNext" class="btn small">Next</button>
+        <button id="closeMath" class="btn small">Back</button>
+      </div>
+      <div id="mathLog" class="log"></div>
+    </section>
+
+    <!-- Spelling -->
+    <section id="spelling" class="section card hidden">
+      <h2>Spelling Bee</h2>
+      <div class="hint">Type the correct spelling for the word shown (hint).</div>
+      <div id="spellWord" style="font-size:28px;font-weight:700;text-align:center;padding:8px">Press Start</div>
+      <div class="game-controls">
+        <input id="spellInput" class="input" placeholder="Type spelling" autocomplete="off" />
+        <button id="spellSubmit" class="btn small">Submit</button>
+        <button id="closeSpell" class="btn small">Back</button>
+      </div>
+      <div id="spellLog" class="log"></div>
+    </section>
+
+    <!-- Memory -->
+    <section id="memory" class="section card hidden">
+      <h2>Memory Match</h2>
+      <div class="hint">Find pairs. Click cards to flip.</div>
+      <div id="memoryBoard" class="memoryGrid"></div>
+      <div class="game-controls"><button id="resetMemory" class="btn small">Reset</button><button id="closeMemory" class="btn small">Back</button></div>
+      <div id="memoryLog" class="log"></div>
+    </section>
+
+    <!-- Geography -->
+    <section id="geo" class="section card hidden">
+      <h2>Geography Quiz</h2>
+      <div id="geoQ" style="font-size:20px;font-weight:700;text-align:center;padding:8px">Press Start</div>
+      <div class="game-controls"><button id="geoStart" class="btn small">Start Question</button><button id="closeGeo" class="btn small">Back</button></div>
+      <div id="geoChoices" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"></div>
+      <div id="geoLog" class="log"></div>
+    </section>
+
+    <!-- EduBot -->
+    <section id="edubot" class="section card hidden">
+      <h2>EduBot — Your Offline Buddy</h2>
+      <div class="hint">Ask simple questions. Examples: "What is 7×8?", "Tell me a space fact", "Spell: beautiful"</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="botInput" class="input" placeholder="Ask EduBot..." autocomplete="off" /><button id="botSend" class="btn small">Send</button><button id="closeBot" class="btn small">Back</button></div>
+      <div id="botLog" class="log"></div>
+    </section>
+
+  </main>
+
+  <!-- Settings modal -->
+  <div id="settings" class="modal hidden" role="dialog" aria-modal="true">
+    <h3>Settings</h3>
+    <div class="row"><div>Sound</div><div><button id="setSoundOn" class="btn small">On</button><button id="setSoundOff" class="btn small">Off</button></div></div>
+    <div class="row"><div>Theme</div><div><button id="themeLight" class="btn small">Light</button><button id="themeDark" class="btn small">Dark</button></div></div>
+    <div style="text-align:right;margin-top:8px"><button id="closeSettings" class="btn small">Close</button></div>
+  </div>
+
+  <div id="confetti" class="confetti"></div>
+
+  <footer class="footer">Made with ❤️ for Learning — by Kotaro and william☁️⭐</footer>
+
+  <audio id="mathCorrect" src="h.mp3"></audio>
+
+<script>
+// Final EduGames by Kotaro — Offline single file
+// Features: Enter key submits, auto-next, autofocus, mixed math/div, go back button, settings, sounds, confetti
+
+// --- Helpers & state ---
+const SND_KEY = 'edug_sound_kotaro';
+const THEME_KEY = 'edug_theme_kotaro';
+let soundOn = localStorage.getItem(SND_KEY) !== 'false';
+let theme = localStorage.getItem(THEME_KEY) || 'light';
+function $(id){return document.getElementById(id)}
+function show(id){ document.querySelectorAll('section.section').forEach(s=>s.classList.add('hidden')); $(id).classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); }
+function showHome(){ document.querySelectorAll('section.section').forEach(s=>s.classList.add('hidden')); $('home').classList.remove('hidden'); hideBack(); $('openWord').focus(); }
+
+// Back button logic (top-left), fades in when a game opens
+const backBtn = $('goBack');
+function showBack(){ backBtn.classList.add('visible'); }
+function hideBack(){ backBtn.classList.remove('visible'); }
+backBtn.addEventListener('click', ()=>{ showHome(); });
+
+// Settings
+function applyTheme(){ if(theme==='dark'){ document.body.style.background = 'linear-gradient(180deg,#09243a,#05314a)'; document.body.classList.add('theme-dark'); } else { document.body.style.background = 'linear-gradient(180deg,var(--sky1),var(--sky2))'; document.body.classList.remove('theme-dark'); } }
+applyTheme();
+function updateSoundUI(){ $('toggleSound').textContent = soundOn ? '🔈 Sound: On' : '🔇 Sound: Off'; }
+updateSoundUI();
+$('toggleSound').onclick = ()=>{ soundOn = !soundOn; localStorage.setItem(SND_KEY, soundOn); updateSoundUI(); };
+$('openSettings').onclick = ()=>{ $('settings').classList.remove('hidden'); };
+$('closeSettings').onclick = ()=>{ $('settings').classList.add('hidden'); };
+$('setSoundOn').onclick = ()=>{ soundOn=true; localStorage.setItem(SND_KEY,true); updateSoundUI(); };
+$('setSoundOff').onclick = ()=>{ soundOn=false; localStorage.setItem(SND_KEY,false); updateSoundUI(); };
+$('themeLight').onclick = ()=>{ theme='light'; localStorage.setItem(THEME_KEY,theme); applyTheme(); };
+$('themeDark').onclick = ()=>{ theme='dark'; localStorage.setItem(THEME_KEY,theme); applyTheme(); };
+
+// Confetti
+function confettiBurst(){ const root = $('confetti'); for(let i=0;i<28;i++){ const el = document.createElement('div'); el.style.position='absolute'; el.style.left = Math.random()*100+'%'; el.style.top = Math.random()*6+'%'; el.style.width='10px'; el.style.height='10px'; el.style.borderRadius='50%'; el.style.background = `hsl(${Math.random()*360},80%,60%)`; el.style.opacity='0.95'; el.style.transition='transform 1200ms linear, opacity 1200ms linear'; root.appendChild(el); setTimeout(()=>{ el.style.transform='translateY(100vh) rotate(720deg)'; el.style.opacity='0'; },50); setTimeout(()=>el.remove(),1400); } }
+
+// safe audio using WebAudio
+function playTone(kind){ if(!soundOn) return; try{ const AudioCtx = window.AudioContext || window.webkitAudioContext; if(!AudioCtx) return; const ctx = new AudioCtx(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type='sine'; if(kind==='win'){ o.frequency.value=880; } else if(kind==='wrong'){ o.frequency.value=220; } else { o.frequency.value=440; } g.gain.value=0.035; o.connect(g); g.connect(ctx.destination); o.start(); setTimeout(()=>{ try{o.stop(); ctx.close();}catch(e){} },160); }catch(e){} }
+
+// Auto-focus helper
+function focusLater(el){ setTimeout(()=>{ try{ el.focus(); }catch(e){} },80); }
+
+// --- EDUWORD (daily word) ---
+const WORDS = ['apple','train','river','cloud','smile','peace','plant','chair','brave','ocean','story','light','house','earth','sound','happy','world','piano','space','party','train','radio','green','water'];
+function dailyWord(){ const d = new Date(); const days = Math.floor(d.getTime()/86400000); return WORDS[days % WORDS.length]; }
+let secret = dailyWord();
+const wordBoard = $('wordBoard'); const wordInput = $('wordGuess'); const wordMsg = $('wordMessages'); let attempts = [];
+function renderWordBoard(){ wordBoard.innerHTML=''; for(let r=0;r<6;r++){ for(let c=0;c<secret.length;c++){ const cell = document.createElement('div'); cell.className='letter'; cell.textContent = (attempts[r] && attempts[r][c]) ? attempts[r][c].toUpperCase() : ''; wordBoard.appendChild(cell); } } }
+$('openWord').onclick = ()=>{ secret = dailyWord(); attempts=[]; renderWordBoard(); wordMsg.textContent='Good luck!'; show('eduword'); showBack(); wordInput.value=''; focusLater(wordInput); };
+$('closeWord').onclick = ()=>{ showHome(); };
+function submitWord(){ const g = wordInput.value.trim().toLowerCase(); if(!g || g.length!==secret.length){ wordMsg.textContent = `Please enter a ${secret.length}-letter word.`; return; } if(attempts.length>=6){ wordMsg.textContent='No more tries!'; return; } attempts.push(g); renderWordBoard(); const last = attempts.length-1; const rowCells = Array.from(wordBoard.children).slice(last*secret.length,(last+1)*secret.length);
+ for(let i=0;i<secret.length;i++){ const ch = g[i]; const cell = rowCells[i]; if(ch === secret[i]){ cell.style.background='#a8e6cf'; } else if(secret.includes(ch)){ cell.style.background='#ffd27f'; } else { cell.style.background='#e0e0e0'; } cell.textContent = ch.toUpperCase(); }
+ if(g===secret){ wordMsg.textContent='🎉 Well done — you got it!'; confettiBurst(); playTone('win'); // clear input and keep board, allow repeat
+ setTimeout(()=>{ attempts=[]; secret=dailyWord(); renderWordBoard(); wordMsg.textContent='Come back tomorrow for a new word!'; wordInput.value=''; },900); return; }
+ if(attempts.length>=6){ wordMsg.textContent=`Out of tries — the word was "${secret.toUpperCase()}".`; playTone('wrong'); return; }
+ wordMsg.textContent = `${6 - attempts.length} tries left.`; wordInput.value=''; focusLater(wordInput);
+}
+$('submitGuess').onclick = submitWord; $('giveUp').onclick = ()=>{ wordMsg.textContent = `The word was "${secret.toUpperCase()}".`; attempts=[]; renderWordBoard(); };
+// Enter key
+wordInput.addEventListener('keydown', e=>{ if(e.key==='Enter') submitWord(); });
+
+// --- MATH MASTER (mix × and ÷) ---
+function genMath(){ const max=12; if(Math.random()<0.5){ const a=Math.floor(Math.random()*max)+1; const b=Math.floor(Math.random()*max)+1; return {op:'×',a,b,ans:a*b}; } else { const divisor = Math.floor(Math.random()*(max-2))+2; const quotient = Math.floor(Math.random()*(max-1))+1; const product = divisor*quotient; return {op:'÷',a:product,b:divisor,ans:quotient}; } }
+let mathQ = null;
+const mathCorrect = $('mathCorrect');
+$('openMath').onclick = ()=>{ $('mathLog').textContent=''; show('math'); showBack(); $('mathAnswer').value=''; focusLater($('mathAnswer')); };
+$('closeMath').onclick = ()=>{ showHome(); };
+function nextMath(){ mathQ = genMath(); if(mathQ.op==='×') $('mathProblem').textContent = `${mathQ.a} × ${mathQ.b} = ?`; else $('mathProblem').textContent = `${mathQ.a} ÷ ${mathQ.b} = ?`; $('mathAnswer').value=''; focusLater($('mathAnswer')); }
+$('mathNext').onclick = nextMath;
+function submitMath(){ const v = parseInt($('mathAnswer').value,10); if(isNaN(v)){ $('mathLog').textContent='Enter a number'; return; } if(v===mathQ.ans){ $('mathLog').textContent='Correct! 🎉'; confettiBurst(); if(soundOn && mathCorrect){ try{ mathCorrect.currentTime = 0; const p = mathCorrect.play(); if(p && typeof p.catch==='function') p.catch(()=>{}); }catch(e){} } setTimeout(()=>{ nextMath(); },900); } else { $('mathLog').textContent='Not correct — try again'; playTone('wrong'); } }
+$('mathSubmit').onclick = submitMath; $('mathAnswer').addEventListener('keydown', e=>{ if(e.key==='Enter') submitMath(); });
+
+// --- SPELLING ---
+const SPELLS = ['because','beautiful','different','friend','mountain','interesting','between','surprise','remember','tomorrow','wonderful','elephant'];
+let spellTarget = '';
+function newSpell(){ spellTarget = SPELLS[Math.floor(Math.random()*SPELLS.length)]; $('spellWord').textContent = spellTarget.replace(/./g,'*'); $('spellInput').value=''; focusLater($('spellInput')); }
+$('openSpell').onclick = ()=>{ newSpell(); $('spellLog').textContent='Type the spelling shown as a hint.'; show('spelling'); showBack(); };
+$('closeSpell').onclick = ()=>{ showHome(); };
+$('spellSubmit').onclick = ()=>{ const v = $('spellInput').value.trim().toLowerCase(); if(!v){ $('spellLog').textContent='Type something'; return; } if(v===spellTarget){ $('spellLog').textContent='Awesome! Correct 🎉'; confettiBurst(); playTone('win'); setTimeout(()=>{ newSpell(); $('spellLog').textContent='New word!'; },900); } else { $('spellLog').textContent='Not quite — try again.'; playTone('wrong'); } };
+$('spellInput').addEventListener('keydown', e=>{ if(e.key==='Enter') $('spellSubmit').click(); });
+
+// --- MEMORY MATCH ---
+const MEM = ['🐶','🐱','🐻','🦊','🐼','🦁','🐵','🐸']; let memCards=[]; let memFirst=null;
+$('openMemory').onclick = ()=>{ startMemory(); show('memory'); showBack(); };
+$('closeMemory').onclick = ()=>{ showHome(); };
+$('resetMemory').onclick = ()=>startMemory();
+function startMemory(){ const icons = MEM.concat(MEM); memCards = shuffle(icons).slice(0,16); const board = $('memoryBoard'); board.innerHTML=''; $('memoryLog').textContent=''; memFirst=null; for(let i=0;i<memCards.length;i++){ const b = document.createElement('button'); b.className='cardBtn'; b.textContent='❓'; b.style.fontSize='28px'; b.dataset.icon = memCards[i]; b.onclick = ()=>flipMem(b); board.appendChild(b); } }
+function flipMem(b){ if(b.revealed) return; b.textContent = b.dataset.icon; b.revealed = true; if(!memFirst) memFirst = b; else { if(memFirst.dataset.icon === b.dataset.icon){ $('memoryLog').textContent='Match!'; playTone('win'); memFirst=null; } else { $('memoryLog').textContent='Not a match'; playTone('wrong'); setTimeout(()=>{ memFirst.textContent='❓'; memFirst.revealed=false; b.textContent='❓'; b.revealed=false; memFirst=null; },700); } } }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
+
+// --- GEOGRAPHY ---
+const GEO = [{q:'Which is the largest ocean?',choices:['Atlantic','Indian','Pacific'],a:2},{q:'Which country has the Eiffel Tower?',choices:['Italy','France','Spain'],a:1},{q:'Which continent is Egypt in?',choices:['Asia','Africa','Europe'],a:1}];
+$('openGeo').onclick = ()=>{ show('geo'); showBack(); $('geoLog').textContent=''; $('geoChoices').innerHTML=''; $('geoQ').textContent='Press Start'; };
+$('closeGeo').onclick = ()=>{ showHome(); };
+$('geoStart').onclick = ()=>{ const q = GEO[Math.floor(Math.random()*GEO.length)]; $('geoQ').textContent=q.q; const ch=$('geoChoices'); ch.innerHTML=''; q.choices.forEach((c,i)=>{ const b=document.createElement('button'); b.className='btn small'; b.textContent=c; b.onclick=()=>{ if(i===q.a){ $('geoLog').textContent='Correct! 🎉'; playTone('win'); } else { $('geoLog').textContent='Try again'; playTone('wrong'); } }; ch.appendChild(b); }); };
+
+// --- EDUBOT OFFLINE ---
+$('openBot').onclick = ()=>{ $('botLog').textContent='Hi! I am EduBot — ask me a simple question.'; show('edubot'); showBack(); };
+$('closeBot').onclick = ()=>{ showHome(); };
+$('botSend').onclick = ()=>{ const t=$('botInput').value.trim(); if(!t) return; appendBot('You: '+t); const r = edubotReply(t); appendBot('EduBot: '+r); $('botInput').value=''; };
+function appendBot(t){ const l=$('botLog'); l.textContent += '\n'+t; l.scrollTop=l.scrollHeight; }
+function edubotReply(s){ s=s.toLowerCase(); const m=s.match(/(-?\d+)\s*([x\*]|times|\*)\s*(-?\d+)|(-?\d+)\s*([+\-\/])\s*(-?\d+)/); if(m){ try{ if(m[1]&&m[2]&&m[3]){ const a=Number(m[1]),b=Number(m[3]); return `${a} × ${b} = ${a*b}`; } if(m[4]&&m[5]&&m[6]){ const a=Number(m[4]),op=m[5],b=Number(m[6]); const val = op==='+'?a+b:op==='-'?a-b:op==='/'?(b===0?'∞':(a/b)):'?'; return `${a} ${op} ${b} = ${val}`; } }catch(e){} }
+ if(/space|planet|moon/.test(s)) return 'Space fact: Jupiter has the shortest day — about 10 hours!';
+ if(/earth|country|capital/.test(s)) return 'Tip: A capital is the city where a country government sits.';
+ if(/spell |how do you spell/.test(s)){ const mm=s.match(/spell\s+(\w+)/); if(mm) return `Spelling: ${mm[1]} is spelled ${mm[1].toLowerCase()}`; }
+ if(/hello|hi|hey/.test(s)) return 'Hello! Ask me something like "6 x 7" or "Tell me a space fact".';
+ return 'Try asking a math question (e.g. "7 x 8"), or "Tell me a space fact".'; }
+
+// --- Init UI ---
+showHome(); // show home initially
+// ensure back button visibility toggles when entering games
+const gameButtons = ['openWord','openMath','openSpell','openMemory','openGeo','openBot'];
+gameButtons.forEach(id=>{ const el=$(id); if(el) el.addEventListener('click', ()=>{ showBack(); }); });
+// focus first home button
+$('openWord').focus();
+
+</script>
+</body>
+</html>

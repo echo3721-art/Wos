@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EduGames — Learning Playground (Kotaro)</title>
+<style>
+:root{
+  --sky1:#e6f4ff;--sky2:#dff4ff;--blue1:#56aaff;--blue2:#8cd3ff;--navy:#003366;--card:#ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:Inter,'Comic Sans MS',system-ui,sans-serif;
+  background:linear-gradient(180deg,var(--sky1),var(--sky2));
+  color:var(--navy);
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+}
+/* clouds */
+.cloud{position:fixed;border-radius:50%;background:rgba(255,255,255,0.85);box-shadow:0 6px 30px rgba(0,0,0,0.06);z-index:0;animation:float 12s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.c1{width:260px;height:90px;left:6%;top:6%}
+.c2{width:160px;height:60px;right:6%;top:12%}
+.c3{width:200px;height:80px;left:62%;top:4%}
+/* header */
+.header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
+.brand{font-weight:900;font-size:20px}
+.headerControls{display:flex;gap:8px}
+.btn{display:inline-block;padding:10px 14px;border-radius:10px;border:0;background:linear-gradient(180deg,var(--blue2),var(--blue1));color:#fff;font-weight:700;cursor:pointer;transition:all .2s}
+.btn:hover{transform:translateY(-3px) scale(1.02)}
+.container{padding:20px;max-width:1200px;margin:20px auto 100px;z-index:5;position:relative}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 10px 32px rgba(0,30,80,0.06);text-align:center;transition:.25s}
+.card:hover{transform:translateY(-6px);box-shadow:0 16px 40px rgba(0,30,80,0.08)}
+.card h3{margin:6px 0}
+.hint{font-size:13px;color:rgba(0,51,102,0.7)}
+.section{margin-top:18px}
+.input{padding:10px;border-radius:10px;border:2px solid rgba(86,170,255,0.2);width:220px}
+.log{height:120px;overflow:auto;background:#f8feff;padding:8px;border-radius:8px;border:1px dashed rgba(86,170,255,0.2);text-align:left}
+.footer{position:fixed;left:0;right:0;bottom:0;padding:12px 8px;background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.95));text-align:center;box-shadow:0 -6px 20px rgba(0,0,0,0.04);font-weight:700}
+.fadeIn{animation:fadeIn .26s ease both}@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+
+<header class="header">
+  <div class="brand">🌤 EduGames</div>
+  <div class="headerControls">
+    <button id="openSettings" class="btn">⚙ Settings</button>
+  </div>
+</header>
+
+<main class="container">
+  <section id="home" class="card section fadeIn">
+    <div class="grid">
+      <div class="card">
+        <h3>🧮 Math Master</h3>
+        <p class="hint">Test your skills: × ÷ + − mix with streak power!</p>
+        <div><button id="openMath" class="btn">Play Math</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="math" class="section card hidden">
+    <h2>Math Master</h2>
+        <div id="mathProblem" style="font-size:36px;font-weight:800;text-align:center;padding:12px">Press Next</div>
+    <div class="game-controls" style="text-align:center">
+      <input id="mathAnswer" class="input" type="number" placeholder="Your answer" />
+      <button id="mathSubmit" class="btn small">Submit</button>
+      <button id="mathNext" class="btn small">Next</button>
+      <button id="closeMath" class="btn small">Back</button>
+    </div>
+    <div id="mathLog" class="log"></div>
+  </section>
+</main>
+
+<audio id="streak3" src="h.mp3"></audio>
+<audio id="streak5" src="5.mp3"></audio>
+<div id="confetti"></div>
+<footer class="footer">Made with ❤️ by William</footer>
+
+<script>
+function $(id){return document.getElementById(id)}
+function show(id){document.querySelectorAll('section.section').forEach(s=>s.classList.add('hidden'));$(id).classList.remove('hidden')}
+function showHome(){document.querySelectorAll('section.section').forEach(s=>s.classList.add('hidden'));$('home').classList.remove('hidden')}
+
+// confetti
+function confettiBurst(){const root=$('confetti');for(let i=0;i<25;i++){const el=document.createElement('div');el.style.position='fixed';el.style.left=Math.random()*100+'%';el.style.top=Math.random()*10+'%';el.style.width='10px';el.style.height='10px';el.style.borderRadius='50%';el.style.background=`hsl(${Math.random()*360},80%,60%)`;el.style.opacity='0.95';el.style.transition='transform 1.2s linear,opacity 1.2s linear';root.appendChild(el);setTimeout(()=>{el.style.transform='translateY(100vh) rotate(720deg)';el.style.opacity='0'},50);setTimeout(()=>el.remove(),1400);}}
+
+// --- MATH MASTER with 3 and 5 streaks ---
+function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+const streak3Msg=["sigma","67","get good!","garama!"];
+let streak=0,correct=0;
+function genMathQ(){
+  const type=rand(1,4);let q,ans;
+  if(type===1){let a=rand(10,99),b=rand(10,9999);q=`${a} × ${b}`;ans=a*b;}
+  else if(type===2){let a=rand(10,999),b=rand(1,9);a-=a%b;q=`${a} ÷ ${b}`;ans=a/b;}
+  else if(type===3){let a=rand(1000,9999),b=rand(1000,9999);q=`${a} + ${b}`;ans=a+b;}
+  else{let a=rand(1000,9999),b=rand(1000,9999);if(b>a)[a,b]=[b,a];q=`${a} − ${b}`;ans=a-b;}
+  return {q,ans};
+}
+let mathQ=null;
+$('openMath').onclick=()=>{show('math');$('mathLog').innerHTML='';streak=0;correct=0;nextQ();}
+$('closeMath').onclick=()=>showHome();
+function nextQ(){mathQ=genMathQ();$('mathProblem').textContent=mathQ.q+' = ?';$('mathAnswer').value='';$('mathAnswer').focus();}
+function popupMsg(msg,color="#0077cc"){const log=$('mathLog');const div=document.createElement('div');div.textContent=msg;div.style.color=color;div.style.fontWeight='700';div.style.marginTop='4px';log.appendChild(div);log.scrollTop=log.scrollHeight;}
+function checkAns(){
+  const v=parseInt($('mathAnswer').value,10);
+  if(isNaN(v))return;
+  const log=$('mathLog');
+  if(v===mathQ.ans){
+    correct++;streak++;
+    log.innerHTML=`✅ Correct (${correct})`;
+    if(streak===3){$('streak3').play();popupMsg(streak3Msg[rand(0,streak3Msg.length-1)],"#ff7700");}
+    if(streak===5){$('streak5').play();confettiBurst();popupMsg("🔥 5 STREAK BONUS!","#008800");}
+    setTimeout(()=>nextQ(),800);
+  }else{
+    log.innerHTML=`❌ Wrong — ${mathQ.q} = ${mathQ.ans}`;
+    streak=0;
+  }
+}
+$('mathSubmit').onclick=checkAns;
+$('mathNext').onclick=nextQ;
+$('mathAnswer').addEventListener('keydown',e=>{if(e.key==='Enter')checkAns();});
+</script>
+</body>
+</html>

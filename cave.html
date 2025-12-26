@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal Caverns - Mining Adventure</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Roboto:wght@400;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            overflow: hidden; 
+            background: #0a0a0f;
+            font-family: 'Roboto', sans-serif;
+            cursor: crosshair;
+        }
+        #gameContainer { width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; }
+        
+        /* HUD Styles */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .hud-panel {
+            background: linear-gradient(135deg, rgba(20,15,30,0.95), rgba(40,30,60,0.9));
+            border: 2px solid #6a5acd;
+            border-radius: 10px;
+            padding: 12px 18px;
+            color: #e0d0ff;
+            box-shadow: 0 0 20px rgba(106,90,205,0.3), inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        
+        #statsPanel {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-icon { font-size: 20px; }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255,215,0,0.5);
+        }
+        
+        #inventoryPanel { max-width: 300px; }
+        
+        #inventoryPanel h3 {
+            font-family: 'Cinzel', serif;
+            color: #9370db;
+            margin-bottom: 8px;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+        
+        #inventoryGrid { display: flex; flex-wrap: wrap; gap: 5px; }
+        
+        .inv-slot {
+            width: 36px;
+            height: 36px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #4a3a6a;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            position: relative;
+        }
+        
+        .inv-slot.filled { border-color: #9370db; }
+        
+        .inv-count {
+            position: absolute;
+            bottom: 1px;
+            right: 3px;
+            font-size: 9px;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+        }
+        
+        /* Crosshair */
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #crosshair::before {
+            content: '⛏';
+            font-size: 28px;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255,215,0,0.8);
+        }
+        
+        /* Mining Progress */
+        #miningProgress {
+            position: fixed;
+            top: 55%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 8px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #6a5acd;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+            z-index: 100;
+        }
+        
+        #miningProgressFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ff8c00);
+            width: 0%;
+            transition: width 0.1s;
+        }
+        
+        /* Target Info */
+        #targetInfo {
+            position: fixed;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        #targetInfo.visible { opacity: 1; }
+        
+        #targetName {
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            margin-bottom: 5px;
+        }
+        
+        #targetHardness { font-size: 12px; color: #aaa; }
+        
+        /* Interaction Prompt */
+        #interactionPrompt {
+            position: fixed;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 15px 30px;
+            color: #ffd700;
+            font-size: 18px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.5); }
+            50% { box-shadow: 0 0 25px rgba(255,215,0,0.8); }
+        }
+        
+        /* Shop Modal */
+        #shopModal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        
+        #shopContent {
+            background: linear-gradient(135deg, #1a1425 0%, #2d2040 100%);
+            border: 3px solid #9370db;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 50px rgba(147,112,219,0.4);
+        }
+        
+        #shopContent h2 {
+            font-family: 'Cinzel', serif;
+            color: #ffd700;
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 25px;
+            text-shadow: 0 0 20px rgba(255,215,0,0.5);
+        }
+        
+        .shop-section { margin-bottom: 25px; }
+        
+        .shop-section h3 {
+            font-family: 'Cinzel', serif;
+            color: #9370db;
+            font-size: 20px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #4a3a6a;
+            padding-bottom: 8px;
+        }
+        
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+        }
+        
+        .shop-item {
+            background: rgba(0,0,0,0.4);
+            border: 2px solid #4a3a6a;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+        
+        .shop-item:hover {
+            border-color: #9370db;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(147,112,219,0.3);
+        }
+        
+        .shop-item-icon { font-size: 32px; margin-bottom: 8px; }
+        .shop-item-name { color: #e0d0ff; font-weight: bold; margin-bottom: 5px; }
+        .shop-item-price { color: #ffd700; font-weight: bold; }
+        
+        .upgrade-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.4);
+            border: 2px solid #4a3a6a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+        
+        .upgrade-item:hover { border-color: #9370db; }
+        .upgrade-item.maxed { opacity: 0.6; pointer-events: none; }
+        
+        .upgrade-info { display: flex; align-items: center; gap: 15px; }
+        .upgrade-icon { font-size: 28px; }
+        .upgrade-details h4 { color: #e0d0ff; margin-bottom: 3px; }
+        .upgrade-details p { color: #888; font-size: 12px; }
+        .upgrade-level { color: #9370db; font-size: 14px; margin-top: 3px; }
+        .upgrade-cost { color: #ffd700; font-weight: bold; font-size: 18px; }
+        
+        #closeShop, #backToCave {
+            display: inline-block;
+            margin: 20px 10px 0;
+            background: linear-gradient(135deg, #6a5acd, #483d8b);
+            border: none;
+            color: white;
+            padding: 12px 40px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.3s;
+        }
+        
+        #closeShop:hover, #backToCave:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(106,90,205,0.5);
+        }
+        
+        .shop-buttons { text-align: center; }
+        
+        /* Surface Area */
+        #surfaceScreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(180deg, #87ceeb 0%, #e0f0ff 50%, #90ee90 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 250;
+        }
+        
+        #surfaceScreen h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 42px;
+            color: #2d5016;
+            margin-bottom: 30px;
+        }
+        
+        .surface-buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .surface-btn {
+            background: linear-gradient(135deg, #4a7c23, #2d5016);
+            border: 3px solid #1a3009;
+            color: white;
+            padding: 20px 40px;
+            font-size: 20px;
+            font-family: 'Cinzel', serif;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 200px;
+        }
+        
+        .surface-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 30px rgba(45,80,22,0.5);
+        }
+        
+        .surface-btn.shop-btn {
+            background: linear-gradient(135deg, #9370db, #6a5acd);
+            border-color: #483d8b;
+        }
+        
+        #surfaceCoins {
+            font-size: 24px;
+            color: #2d5016;
+            margin-bottom: 20px;
+        }
+        
+        /* Start Screen */
+        #startScreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at center, #1a1030 0%, #0a0510 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+        }
+        
+        #startScreen h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 56px;
+            color: #9370db;
+            text-shadow: 0 0 30px rgba(147,112,219,0.6), 0 0 60px rgba(147,112,219,0.3);
+            margin-bottom: 10px;
+            letter-spacing: 5px;
+        }
+        
+        #startScreen .subtitle {
+            font-size: 20px;
+            color: #6a5acd;
+            margin-bottom: 20px;
+            letter-spacing: 3px;
+        }
+        
+        #savedInfo {
+            color: #ffd700;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        #startBtn {
+            background: linear-gradient(135deg, #9370db, #6a5acd);
+            border: none;
+            color: white;
+            padding: 18px 60px;
+            font-size: 22px;
+            font-family: 'Cinzel', serif;
+            border-radius: 10px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            box-shadow: 0 0 30px rgba(147,112,219,0.4);
+            margin: 10px;
+        }
+        
+        #startBtn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 50px rgba(147,112,219,0.6);
+        }
+        
+        #resetBtn {
+            background: linear-gradient(135deg, #8b0000, #5a0000);
+            border: none;
+            color: white;
+            padding: 10px 30px;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            opacity: 0.7;
+        }
+        
+        #resetBtn:hover { opacity: 1; }
+        
+        .controls-info {
+            margin-top: 30px;
+            color: #666;
+            text-align: center;
+            line-height: 1.8;
+        }
+        
+        .controls-info span { color: #9370db; }
+        
+        /* Notifications */
+        #notifications {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            z-index: 150;
+            pointer-events: none;
+        }
+        
+        .notification {
+            background: linear-gradient(135deg, rgba(20,15,30,0.95), rgba(40,30,60,0.9));
+            border: 2px solid #6a5acd;
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 10px;
+            color: #e0d0ff;
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+            box-shadow: 0 0 15px rgba(106,90,205,0.3);
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateX(50px); }
+        }
+        
+        .hidden { display: none !important; }
+        
+        /* Depth indicator */
+        #depthIndicator {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, rgba(20,15,30,0.95), rgba(40,30,60,0.9));
+            border: 2px solid #6a5acd;
+            border-radius: 10px;
+            padding: 15px;
+            color: #e0d0ff;
+            text-align: center;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        #depthIndicator h4 { color: #9370db; font-size: 12px; margin-bottom: 5px; }
+        #depthValue { font-size: 24px; color: #ffd700; font-weight: bold; }
+        #floorValue { font-size: 16px; color: #ff8c00; margin-top: 5px; }
+        #depthIndicator small { color: #888; font-size: 10px; }
+        
+        .floor-btn {
+            background: linear-gradient(135deg, #4a7c23, #2d5016);
+            border: 2px solid #1a3009;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 60px;
+        }
+        .floor-btn:hover { transform: scale(1.1); }
+        .floor-btn.locked {
+            background: #444;
+            border-color: #333;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .floor-btn.rare { background: linear-gradient(135deg, #6a5acd, #483d8b); border-color: #322a5c; }
+        .floor-btn.epic { background: linear-gradient(135deg, #9932cc, #6a0dad); border-color: #4a0a7a; }
+        .floor-btn.legendary { background: linear-gradient(135deg, #ff8c00, #cc7000); border-color: #995500; }
+        .floor-btn.mythic { background: linear-gradient(135deg, #ff0080, #cc0066); border-color: #990050; }
+        .floor-btn.transcendent { background: linear-gradient(135deg, #00ffff, #00cccc); border-color: #009999; color: #000; }
+        .floor-btn.divine { background: linear-gradient(135deg, #ffd700, #ffaa00); border-color: #cc8800; color: #000; }
+    </style>
+</head>
+<body>
+    <div id="gameContainer"></div>
+    
+    <div id="crosshair"></div>
+    
+    <div id="miningProgress">
+        <div id="miningProgressFill"></div>
+    </div>
+    
+    <div id="targetInfo">
+        <div id="targetName"></div>
+        <div id="targetHardness"></div>
+    </div>
+    
+    <div id="interactionPrompt"></div>
+    
+    <div id="hud" class="hidden">
+        <div class="hud-panel" id="statsPanel">
+            <div class="stat-item">
+                <span class="stat-icon">💰</span>
+                <span class="stat-value" id="coins">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🎒</span>
+                <span class="stat-value" id="backpackStatus">0/10</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">⛏️</span>
+                <span class="stat-value" id="pickaxeLevel">Lv.1</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🍀</span>
+                <span class="stat-value" id="luckLevel">Lv.1</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🏔️</span>
+                <span class="stat-value" id="floorDisplay">Floor 1</span>
+            </div>
+        </div>
+        
+        <div class="hud-panel" id="inventoryPanel">
+            <h3>INVENTORY</h3>
+            <div id="inventoryGrid"></div>
+        </div>
+    </div>
+    
+    <div id="depthIndicator" class="hidden">
+        <h4>DEPTH</h4>
+        <div id="depthValue">0</div>
+        <small>meters</small>
+        <div id="floorValue">Floor 1</div>
+    </div>
+    
+    <div id="notifications"></div>
+    
+    <div id="surfaceScreen">
+        <h2>🌄 MINING CAMP 🌄</h2>
+        <div id="surfaceCoins">💰 0 Coins</div>
+        <div id="maxFloorInfo" style="color: #2d5016; margin-bottom: 15px;">Deepest Floor Reached: 1</div>
+        <div class="surface-buttons">
+            <button class="surface-btn shop-btn" id="surfaceShopBtn">🏪 Open Shop</button>
+            <button class="surface-btn" id="enterCaveBtn">⛏️ Enter Cave</button>
+        </div>
+        <div id="floorSelect" style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 600px;"></div>
+        <div style="margin-top: 20px; color: #2d5016; text-align: center; max-width: 500px;">
+            <p><strong>Floor Guide:</strong></p>
+            <p style="font-size: 12px; line-height: 1.6;">
+                F1-2: Common ores | F3-4: Rare gems | F5-6: Epic crystals<br>
+                F7-9: Legendary stones | F10-14: Mythic essences<br>
+                F15-19: Transcendent gems | F20+: Divine materials
+            </p>
+        </div>
+    </div>
+    
+    <div id="shopModal">
+        <div id="shopContent">
+            <h2>⚒️ MINING OUTPOST ⚒️</h2>
+            
+            <div class="shop-section">
+                <h3>💎 Sell Ores</h3>
+                <div class="shop-grid" id="sellGrid"></div>
+            </div>
+            
+            <div class="shop-section">
+                <h3>⬆️ Upgrades</h3>
+                <div id="upgradesGrid"></div>
+            </div>
+            
+            <div class="shop-buttons">
+                <button id="closeShop">Close Shop</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="startScreen">
+        <h1>CRYSTAL CAVERNS</h1>
+        <div class="subtitle">Mining Adventure</div>
+        <div id="savedInfo"></div>
+        <button id="startBtn">⛏️ CONTINUE MINING ⛏️</button>
+        <button id="resetBtn">🗑️ Reset Progress</button>
+        <div class="controls-info">
+            <span>WASD</span> - Move | <span>MOUSE</span> - Look | <span>HOLD LEFT CLICK</span> - Mine<br>
+            <span>E</span> - Interact (Exit/Stairs) | <span>DOUBLE-CLICK</span> - Lock Mouse | <span>ESC</span> - Unlock
+        </div>
+    </div>
+
+    <!-- Audio elements for cave sounds -->
+    <audio id="caveSound1" src="cave.mp3" preload="auto"></audio>
+    <audio id="caveSound2" src="cave1.mp3" preload="auto"></audio>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ==================== GAME DATA ====================
+        const ORE_TYPES = {
+            // Common ores (Floor 1+)
+            stone: { name: 'Stone', color: 0x808080, emissive: 0x000000, hardness: 1, value: 1, rarity: 100, icon: '🪨', minFloor: 1 },
+            coal: { name: 'Coal', color: 0x1a1a1a, emissive: 0x000000, hardness: 2, value: 3, rarity: 70, icon: ' ite', minFloor: 1 },
+            copper: { name: 'Copper', color: 0xb87333, emissive: 0x331100, hardness: 3, value: 8, rarity: 50, icon: '🟤', minFloor: 1 },
+            tin: { name: 'Tin', color: 0xc0c0c0, emissive: 0x111111, hardness: 3, value: 10, rarity: 45, icon: '⚪', minFloor: 1 },
+            
+            // Uncommon ores (Floor 2+)
+            iron: { name: 'Iron', color: 0x8b8b8b, emissive: 0x111111, hardness: 4, value: 15, rarity: 35, icon: '⚙️', minFloor: 2 },
+            silver: { name: 'Silver', color: 0xe8e8e8, emissive: 0x222222, hardness: 5, value: 25, rarity: 25, icon: '🥈', minFloor: 2 },
+            gold: { name: 'Gold', color: 0xffd700, emissive: 0x332200, hardness: 6, value: 40, rarity: 18, icon: '🥇', minFloor: 2 },
+            
+            // Rare ores (Floor 3+)
+            platinum: { name: 'Platinum', color: 0xe5e4e2, emissive: 0x333333, hardness: 7, value: 60, rarity: 12, icon: '⬜', minFloor: 3 },
+            sapphire: { name: 'Sapphire', color: 0x0066ff, emissive: 0x001133, hardness: 8, value: 80, rarity: 8, icon: '💙', minFloor: 3 },
+            topaz: { name: 'Topaz', color: 0xffcc00, emissive: 0x332200, hardness: 8, value: 85, rarity: 8, icon: '💛', minFloor: 3 },
+            
+            // Very Rare ores (Floor 4+)
+            diamond: { name: 'Diamond', color: 0x00ffff, emissive: 0x003333, hardness: 10, value: 120, rarity: 5, icon: '💎', minFloor: 4 },
+            emerald: { name: 'Emerald', color: 0x00ff00, emissive: 0x003300, hardness: 10, value: 150, rarity: 4, icon: '💚', minFloor: 4 },
+            ruby: { name: 'Ruby', color: 0xff0040, emissive: 0x330011, hardness: 11, value: 180, rarity: 3, icon: '❤️', minFloor: 4 },
+            
+            // Epic ores (Floor 5+)
+            obsidian: { name: 'Obsidian', color: 0x1a0a1a, emissive: 0x110011, hardness: 13, value: 250, rarity: 2, icon: '🖤', minFloor: 5 },
+            amethyst: { name: 'Amethyst', color: 0x9966cc, emissive: 0x220033, hardness: 12, value: 220, rarity: 2.5, icon: '💜', minFloor: 5 },
+            opal: { name: 'Opal', color: 0xffeedd, emissive: 0x332211, hardness: 12, value: 280, rarity: 1.8, icon: '🤍', minFloor: 5 },
+            
+            // Legendary ores (Floor 7+)
+            dragonstone: { name: 'Dragonstone', color: 0xff4400, emissive: 0x331100, hardness: 15, value: 400, rarity: 1, icon: '🔥', minFloor: 7 },
+            moonstone: { name: 'Moonstone', color: 0xaaddff, emissive: 0x113355, hardness: 14, value: 350, rarity: 1.2, icon: '🌙', minFloor: 7 },
+            starcrystal: { name: 'Star Crystal', color: 0xffff88, emissive: 0x333311, hardness: 16, value: 500, rarity: 0.8, icon: '⭐', minFloor: 7 },
+            
+            // Mythic ores (Floor 10+)
+            voidstone: { name: 'Voidstone', color: 0x220033, emissive: 0x110022, hardness: 18, value: 750, rarity: 0.4, icon: '🌑', minFloor: 10 },
+            sunstone: { name: 'Sunstone', color: 0xff8800, emissive: 0x442200, hardness: 18, value: 800, rarity: 0.35, icon: '☀️', minFloor: 10 },
+            ancient: { name: 'Ancient Crystal', color: 0xff00ff, emissive: 0x330033, hardness: 20, value: 1000, rarity: 0.25, icon: '🔮', minFloor: 10 },
+            
+            // Transcendent ores (Floor 15+)
+            ethereal: { name: 'Ethereal Gem', color: 0x88ffff, emissive: 0x224444, hardness: 25, value: 2000, rarity: 0.1, icon: '✨', minFloor: 15 },
+            cosmic: { name: 'Cosmic Ore', color: 0x4400ff, emissive: 0x110044, hardness: 28, value: 3000, rarity: 0.05, icon: '🌌', minFloor: 15 },
+            
+            // Godly ores (Floor 20+)
+            divine: { name: 'Divine Crystal', color: 0xffffcc, emissive: 0x444422, hardness: 35, value: 5000, rarity: 0.02, icon: '👑', minFloor: 20 },
+            primordial: { name: 'Primordial Essence', color: 0x00ff88, emissive: 0x003322, hardness: 40, value: 10000, rarity: 0.01, icon: '💫', minFloor: 20 }
+        };
+        
+        const MAX_FLOOR = 25;
+        
+        const UPGRADES = {
+            backpack: { 
+                name: 'Backpack', icon: '🎒', desc: 'Carry more ores',
+                levels: [10, 20, 35, 50, 75, 100, 150, 200, 300, 500],
+                costs: [50, 150, 400, 1000, 2500, 6000, 15000, 40000, 100000, 300000]
+            },
+            pickaxe: {
+                name: 'Pickaxe Power', icon: '⛏️', desc: 'Mine faster & break harder ores',
+                levels: [1, 2, 4, 6, 9, 13, 18, 25, 35, 50, 70, 100],
+                costs: [100, 300, 800, 2000, 5000, 12000, 30000, 80000, 200000, 500000, 1500000, 5000000]
+            },
+            luck: {
+                name: 'Fortune', icon: '🍀', desc: 'Find rarer ores more often',
+                levels: [1, 1.5, 2, 3, 4.5, 7, 10, 15, 25, 50],
+                costs: [200, 600, 1500, 4000, 10000, 25000, 70000, 200000, 600000, 2000000]
+            }
+        };
+        
+        // ==================== GAME STATE ====================
+        const game = {
+            running: false,
+            inCave: false,
+            coins: 0,
+            inventory: {},
+            upgrades: { backpack: 0, pickaxe: 0, luck: 0 },
+            currentFloor: 1,
+            maxFloorReached: 1,
+            currentMining: null,
+            miningProgress: 0,
+            ores: [],
+            treasures: [],
+            particles: [],
+            interactables: [],
+            nearInteractable: null,
+            soundInterval: null
+        };
+        
+        // ==================== SAVE/LOAD SYSTEM ====================
+        function saveGame() {
+            const saveData = {
+                coins: game.coins,
+                inventory: game.inventory,
+                upgrades: game.upgrades,
+                maxFloorReached: game.maxFloorReached,
+                savedAt: Date.now()
+            };
+            document.cookie = `crystalCavernsSave=${encodeURIComponent(JSON.stringify(saveData))};max-age=31536000;path=/`;
+            console.log('Game saved!');
+        }
+        
+        function loadGame() {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'crystalCavernsSave') {
+                    try {
+                        const saveData = JSON.parse(decodeURIComponent(value));
+                        game.coins = saveData.coins || 0;
+                        game.inventory = saveData.inventory || {};
+                        game.upgrades = saveData.upgrades || { backpack: 0, pickaxe: 0, luck: 0 };
+                        game.maxFloorReached = saveData.maxFloorReached || 1;
+                        
+                        // Show saved info
+                        const savedAt = new Date(saveData.savedAt);
+                        document.getElementById('savedInfo').textContent = 
+                            `💾 Save found: ${game.coins} coins, Floor ${game.maxFloorReached} unlocked`;
+                        return true;
+                    } catch (e) {
+                        console.error('Failed to load save:', e);
+                    }
+                }
+            }
+            document.getElementById('savedInfo').textContent = '🆕 New Game';
+            return false;
+        }
+        
+        function resetGame() {
+            if (confirm('Are you sure you want to reset ALL progress? This cannot be undone!')) {
+                document.cookie = 'crystalCavernsSave=;max-age=0;path=/';
+                location.reload();
+            }
+        }
+        
+        // ==================== AUDIO SYSTEM ====================
+        function playRandomCaveSound() {
+            if (!game.inCave) return;
+            
+            const sounds = [
+                document.getElementById('caveSound1'),
+                document.getElementById('caveSound2')
+            ];
+            
+            const sound = sounds[Math.floor(Math.random() * sounds.length)];
+            if (sound) {
+                sound.volume = 0.3;
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log('Audio not loaded'));
+            }
+        }
+        
+        function startCaveSounds() {
+            // Play one immediately
+            setTimeout(playRandomCaveSound, 2000);
+            // Then every 60 seconds
+            game.soundInterval = setInterval(playRandomCaveSound, 60000);
+        }
+        
+        function stopCaveSounds() {
+            if (game.soundInterval) {
+                clearInterval(game.soundInterval);
+                game.soundInterval = null;
+            }
+        }
+        
+        // ==================== THREE.JS SETUP ====================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050508);
+        scene.fog = new THREE.FogExp2(0x050508, 0.03);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 1.7, 0);
+        camera.rotation.order = 'YXZ';
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        document.getElementById('gameContainer').appendChild(renderer.domElement);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x1a1520, 0.3);
+        scene.add(ambientLight);
+        
+        const torchLight = new THREE.PointLight(0xffaa55, 1.5, 15);
+        scene.add(torchLight);
+        
+        const glowLight = new THREE.PointLight(0x6644aa, 0.5, 20);
+        scene.add(glowLight);
+        
+        // ==================== CAVE GENERATION ====================
+        const CAVE_SIZE = 80;
+        let caveWalls = [];
+        
+        function clearCave() {
+            // Remove all cave objects
+            game.ores.forEach(o => scene.remove(o));
+            game.treasures.forEach(t => scene.remove(t));
+            game.interactables.forEach(i => scene.remove(i));
+            caveWalls.forEach(w => scene.remove(w));
+            
+            game.ores = [];
+            game.treasures = [];
+            game.interactables = [];
+            caveWalls = [];
+            
+            // Remove floor and ceiling
+            scene.children = scene.children.filter(c => 
+                c === ambientLight || c === torchLight || c === glowLight || c.type === 'PerspectiveCamera'
+            );
+            scene.add(ambientLight);
+            scene.add(torchLight);
+            scene.add(glowLight);
+        }
+        
+        function generateCave(floor) {
+            clearCave();
+            game.currentFloor = floor;
+            
+            // Adjust difficulty based on floor
+            const floorMult = 1 + (floor - 1) * 0.5;
+            
+            const wallColor = 0x2a2030 - floor * 0x050505;
+            const floorColor = 0x1a1520 - floor * 0x030303;
+            
+            const wallMat = new THREE.MeshLambertMaterial({ color: Math.max(wallColor, 0x0a0a10) });
+            const floorMat = new THREE.MeshLambertMaterial({ color: Math.max(floorColor, 0x050508) });
+            
+            // Floor
+            const floorGeo = new THREE.PlaneGeometry(CAVE_SIZE, CAVE_SIZE);
+            const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.position.y = 0;
+            scene.add(floorMesh);
+            
+            // Ceiling
+            const ceiling = new THREE.Mesh(floorGeo, wallMat);
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = 4;
+            scene.add(ceiling);
+            
+            // Generate cave walls
+            const wallGeo = new THREE.BoxGeometry(2, 4, 2);
+            
+            for (let x = -CAVE_SIZE/2; x < CAVE_SIZE/2; x += 2) {
+                for (let z = -CAVE_SIZE/2; z < CAVE_SIZE/2; z += 2) {
+                    const distFromCenter = Math.sqrt(x*x + z*z);
+                    const isEdge = Math.abs(x) > CAVE_SIZE/2 - 4 || Math.abs(z) > CAVE_SIZE/2 - 4;
+                    const noise = Math.sin(x * 0.3 + floor) * Math.cos(z * 0.3 + floor) + Math.random() * 0.5;
+                    
+                    // Leave space for exit and stairs
+                    const isExitArea = x > -5 && x < 5 && z > CAVE_SIZE/2 - 10;
+                    const isStairsArea = x > -5 && x < 5 && z < -CAVE_SIZE/2 + 10;
+                    
+                    if ((isEdge || (noise > 0.6 && distFromCenter > 8)) && !isExitArea && !isStairsArea) {
+                        const wall = new THREE.Mesh(wallGeo, wallMat);
+                        wall.position.set(x, 2, z);
+                        scene.add(wall);
+                        caveWalls.push(wall);
+                    }
+                }
+            }
+            
+            // Create EXIT (at north end)
+            createExit(0, CAVE_SIZE/2 - 5);
+            
+            // Create STAIRS DOWN (at south end) - only if not at max floor
+            if (floor < MAX_FLOOR) {
+                createStairs(0, -CAVE_SIZE/2 + 5, floor + 1);
+            } else {
+                // Create a sign saying this is the deepest floor
+                createDeepestFloorSign(0, -CAVE_SIZE/2 + 5);
+            }
+            
+            // Create STAIRS UP if not on floor 1
+            if (floor > 1) {
+                createStairsUp(5, CAVE_SIZE/2 - 8, floor - 1);
+            }
+            
+            // Generate ores (more and rarer on deeper floors)
+            generateOres(floor);
+            
+            // Generate treasures
+            generateTreasures(floor);
+            
+            // Reset player position
+            camera.position.set(0, 1.7, CAVE_SIZE/2 - 12);
+            camera.rotation.set(0, Math.PI, 0);
+            
+            updateHUD();
+        }
+        
+        function createExit(x, z) {
+            const exitGroup = new THREE.Group();
+            
+            // Archway
+            const archMat = new THREE.MeshLambertMaterial({ color: 0x4a8a4a, emissive: 0x1a3a1a });
+            
+            const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3, 0.5), archMat);
+            leftPillar.position.set(-1.5, 1.5, 0);
+            exitGroup.add(leftPillar);
+            
+            const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3, 0.5), archMat);
+            rightPillar.position.set(1.5, 1.5, 0);
+            exitGroup.add(rightPillar);
+            
+            const top = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 0.5), archMat);
+            top.position.set(0, 3.25, 0);
+            exitGroup.add(top);
+            
+            // Sign
+            const signMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const sign = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.5), signMat);
+            sign.position.set(0, 3.7, 0.3);
+            exitGroup.add(sign);
+            
+            // Light
+            const exitLight = new THREE.PointLight(0x88ff88, 1, 10);
+            exitLight.position.set(0, 2, 1);
+            exitGroup.add(exitLight);
+            
+            exitGroup.position.set(x, 0, z);
+            exitGroup.userData = { type: 'exit', label: '🚪 EXIT to Surface [E]' };
+            scene.add(exitGroup);
+            game.interactables.push(exitGroup);
+        }
+        
+        function createStairs(x, z, toFloor) {
+            const stairsGroup = new THREE.Group();
+            
+            const stairsMat = new THREE.MeshLambertMaterial({ color: 0x5a4a3a, emissive: 0x1a1008 });
+            
+            // Staircase steps going down
+            for (let i = 0; i < 5; i++) {
+                const step = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 0.8), stairsMat);
+                step.position.set(0, -i * 0.3, -i * 0.8);
+                stairsGroup.add(step);
+            }
+            
+            // Railing
+            const railMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+            const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 4), railMat);
+            leftRail.position.set(-1.6, 0.5, -2);
+            stairsGroup.add(leftRail);
+            
+            const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 4), railMat);
+            rightRail.position.set(1.6, 0.5, -2);
+            stairsGroup.add(rightRail);
+            
+            // Glow
+            const stairsLight = new THREE.PointLight(0xffaa44, 0.8, 8);
+            stairsLight.position.set(0, 1, 0);
+            stairsGroup.add(stairsLight);
+            
+            stairsGroup.position.set(x, 0, z);
+            stairsGroup.userData = { type: 'stairs_down', toFloor, label: `⬇️ Go to Floor ${toFloor} [E]` };
+            scene.add(stairsGroup);
+            game.interactables.push(stairsGroup);
+        }
+        
+        function createStairsUp(x, z, toFloor) {
+            const stairsGroup = new THREE.Group();
+            
+            const stairsMat = new THREE.MeshLambertMaterial({ color: 0x5a5a4a, emissive: 0x181810 });
+            
+            // Staircase steps going up
+            for (let i = 0; i < 5; i++) {
+                const step = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 0.8), stairsMat);
+                step.position.set(0, i * 0.3, -i * 0.8);
+                stairsGroup.add(step);
+            }
+            
+            // Light
+            const stairsLight = new THREE.PointLight(0x88ff88, 0.6, 8);
+            stairsLight.position.set(0, 2, -2);
+            stairsGroup.add(stairsLight);
+            
+            stairsGroup.position.set(x, 0, z);
+            stairsGroup.userData = { type: 'stairs_up', toFloor, label: `⬆️ Go to Floor ${toFloor} [E]` };
+            scene.add(stairsGroup);
+            game.interactables.push(stairsGroup);
+        }
+        
+        function createDeepestFloorSign(x, z) {
+            const signGroup = new THREE.Group();
+            
+            // Pillar
+            const pillarMat = new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0x332200 });
+            const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 3, 8), pillarMat);
+            pillar.position.y = 1.5;
+            signGroup.add(pillar);
+            
+            // Glowing orb on top
+            const orbMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 12), orbMat);
+            orb.position.y = 3.2;
+            signGroup.add(orb);
+            
+            // Light
+            const signLight = new THREE.PointLight(0xffffff, 2, 15);
+            signLight.position.y = 3.5;
+            signGroup.add(signLight);
+            
+            signGroup.position.set(x, 0, z);
+            scene.add(signGroup);
+        }
+        
+        function generateOres(floor) {
+            // More ores on deeper floors
+            const oreCount = 100 + floor * 25;
+            const luckMult = UPGRADES.luck.levels[game.upgrades.luck];
+            
+            for (let i = 0; i < oreCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 8 + Math.random() * (CAVE_SIZE/2 - 15);
+                const x = Math.cos(angle) * dist;
+                const z = Math.sin(angle) * dist;
+                
+                // Skip areas near exit/stairs
+                if (Math.abs(x) < 6 && (z > CAVE_SIZE/2 - 12 || z < -CAVE_SIZE/2 + 12)) continue;
+                
+                const depthBonus = dist / (CAVE_SIZE/2) * 2;
+                const oreType = selectOreType(depthBonus, luckMult, floor);
+                
+                createOre(x, z, oreType, floor);
+            }
+        }
+        
+        function selectOreType(depthBonus, luckMult, floor) {
+            const types = Object.keys(ORE_TYPES);
+            let totalWeight = 0;
+            const weights = [];
+            
+            types.forEach(type => {
+                const oreData = ORE_TYPES[type];
+                // Only spawn ores if floor requirement is met
+                if (floor < oreData.minFloor) {
+                    weights.push(0);
+                    return;
+                }
+                
+                // Base weight from rarity
+                let weight = oreData.rarity;
+                
+                // Bonus for being on/past the minimum floor (rare ores more common deeper)
+                const floorBonus = Math.max(0, floor - oreData.minFloor) * 0.5;
+                weight *= (1 + floorBonus);
+                
+                // Depth bonus within the cave
+                weight *= (1 + depthBonus * 0.5);
+                
+                // Luck multiplier for non-stone ores
+                if (type !== 'stone') weight *= luckMult;
+                
+                // Reduce stone spawns on deeper floors
+                if (type === 'stone') weight *= Math.max(0.2, 1 - floor * 0.05);
+                
+                weights.push(weight);
+                totalWeight += weight;
+            });
+            
+            let roll = Math.random() * totalWeight;
+            for (let i = 0; i < types.length; i++) {
+                roll -= weights[i];
+                if (roll <= 0) return types[i];
+            }
+            return 'stone';
+        }
+        
+        function createOre(x, z, type, floor) {
+            const oreData = ORE_TYPES[type];
+            const size = 0.4 + Math.random() * 0.3;
+            const floorMult = 1 + (floor - 1) * 0.3;
+            
+            const geo = new THREE.DodecahedronGeometry(size, 0);
+            const mat = new THREE.MeshLambertMaterial({ 
+                color: oreData.color, 
+                emissive: oreData.emissive 
+            });
+            
+            const ore = new THREE.Mesh(geo, mat);
+            ore.position.set(x, size + Math.random() * 0.5, z);
+            ore.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            ore.userData = { 
+                type, 
+                hardness: oreData.hardness * floorMult,
+                health: oreData.hardness * 2 * floorMult,
+                maxHealth: oreData.hardness * 2 * floorMult,
+                floor
+            };
+            
+            scene.add(ore);
+            game.ores.push(ore);
+            
+            if (oreData.rarity < 20) {
+                const glowGeo = new THREE.SphereGeometry(size * 1.3, 8, 8);
+                const glowMat = new THREE.MeshBasicMaterial({
+                    color: oreData.color,
+                    transparent: true,
+                    opacity: 0.15
+                });
+                const glow = new THREE.Mesh(glowGeo, glowMat);
+                ore.add(glow);
+            }
+        }
+        
+        function generateTreasures(floor) {
+            const treasureCount = 3 + floor;
+            for (let i = 0; i < treasureCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 15 + Math.random() * 15;
+                const x = Math.cos(angle) * dist;
+                const z = Math.sin(angle) * dist;
+                
+                if (Math.abs(x) < 6 && (z > CAVE_SIZE/2 - 12 || z < -CAVE_SIZE/2 + 12)) continue;
+                
+                const chestGeo = new THREE.BoxGeometry(0.8, 0.6, 0.5);
+                const chestMat = new THREE.MeshLambertMaterial({ color: 0x8b4513, emissive: 0x221100 });
+                const chest = new THREE.Mesh(chestGeo, chestMat);
+                chest.position.set(x, 0.3, z);
+                chest.userData = { type: 'treasure', opened: false, value: (50 + Math.floor(Math.random() * 200)) * floor };
+                scene.add(chest);
+                game.treasures.push(chest);
+                
+                const glowLight = new THREE.PointLight(0xffd700, 0.5, 5);
+                glowLight.position.set(x, 1, z);
+                scene.add(glowLight);
+            }
+        }
+        
+        function respawnOre(oldOre) {
+            scene.remove(oldOre);
+            game.ores = game.ores.filter(o => o !== oldOre);
+            
+            setTimeout(() => {
+                if (!game.inCave) return;
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 8 + Math.random() * (CAVE_SIZE/2 - 15);
+                const x = Math.cos(angle) * dist;
+                const z = Math.sin(angle) * dist;
+                
+                if (Math.abs(x) < 6 && (Math.abs(z) > CAVE_SIZE/2 - 12)) return;
+                
+                const depthBonus = dist / (CAVE_SIZE/2) * 2;
+                const luckMult = UPGRADES.luck.levels[game.upgrades.luck];
+                const oreType = selectOreType(depthBonus, luckMult, game.currentFloor);
+                createOre(x, z, oreType, game.currentFloor);
+            }, 8000 + Math.random() * 12000);
+        }
+        
+        // ==================== INPUT ====================
+        const keys = {};
+        let isLocked = false;
+        let isMining = false;
+        
+        document.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'KeyE' && game.running && game.inCave) {
+                handleInteraction();
+            }
+        });
+        
+        document.addEventListener('keyup', e => { keys[e.code] = false; });
+        
+        document.addEventListener('mousemove', e => {
+            if (!isLocked || !game.running || !game.inCave) return;
+            const sensitivity = 0.002;
+            camera.rotation.y -= e.movementX * sensitivity;
+            camera.rotation.x -= e.movementY * sensitivity;
+            camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, camera.rotation.x));
+        });
+        
+        document.addEventListener('mousedown', e => {
+            if (e.button === 0 && isLocked && game.running && game.inCave) {
+                isMining = true;
+            }
+        });
+        
+        document.addEventListener('mouseup', e => {
+            if (e.button === 0) {
+                isMining = false;
+                game.miningProgress = 0;
+                game.currentMining = null;
+                document.getElementById('miningProgress').style.display = 'none';
+            }
+        });
+        
+        document.addEventListener('pointerlockchange', () => {
+            isLocked = document.pointerLockElement === renderer.domElement;
+        });
+        
+        // Double-click to lock mouse
+        renderer.domElement.addEventListener('dblclick', () => {
+            if (game.running && game.inCave && !isLocked) {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+        
+        // ==================== INTERACTIONS ====================
+        function handleInteraction() {
+            if (game.nearInteractable) {
+                const data = game.nearInteractable.userData;
+                
+                if (data.type === 'exit') {
+                    exitToSurface();
+                } else if (data.type === 'stairs_down') {
+                    goToFloor(data.toFloor);
+                } else if (data.type === 'stairs_up') {
+                    goToFloor(data.toFloor);
+                }
+            }
+        }
+        
+        function exitToSurface() {
+            game.inCave = false;
+            game.running = false;
+            stopCaveSounds();
+            document.exitPointerLock();
+            
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('depthIndicator').classList.add('hidden');
+            document.getElementById('crosshair').style.display = 'none';
+            document.getElementById('surfaceScreen').style.display = 'flex';
+            updateSurfaceScreen();
+            
+            saveGame();
+        }
+        
+        function updateSurfaceScreen() {
+            document.getElementById('surfaceCoins').textContent = `💰 ${game.coins.toLocaleString()} Coins`;
+            document.getElementById('maxFloorInfo').textContent = `Deepest Floor Reached: ${game.maxFloorReached}`;
+            
+            // Create floor selection buttons
+            const floorSelect = document.getElementById('floorSelect');
+            floorSelect.innerHTML = '<div style="width:100%;color:#2d5016;margin-bottom:10px;font-weight:bold;">Select Floor:</div>';
+            
+            for (let f = 1; f <= MAX_FLOOR; f++) {
+                const btn = document.createElement('button');
+                btn.textContent = `F${f}`;
+                btn.className = 'floor-btn';
+                
+                // Add tier classes
+                if (f >= 20) btn.classList.add('divine');
+                else if (f >= 15) btn.classList.add('transcendent');
+                else if (f >= 10) btn.classList.add('mythic');
+                else if (f >= 7) btn.classList.add('legendary');
+                else if (f >= 5) btn.classList.add('epic');
+                else if (f >= 3) btn.classList.add('rare');
+                
+                if (f > game.maxFloorReached) {
+                    btn.classList.add('locked');
+                    btn.title = `Reach Floor ${f-1} to unlock`;
+                } else {
+                    btn.onclick = () => enterCave(f);
+                    btn.title = `Enter Floor ${f}`;
+                }
+                
+                floorSelect.appendChild(btn);
+            }
+        }
+        
+        function goToFloor(floor) {
+            if (floor > MAX_FLOOR) {
+                notify(`❌ Floor ${MAX_FLOOR} is the deepest level!`);
+                return;
+            }
+            if (floor > game.maxFloorReached + 1) {
+                notify(`❌ You need to reach Floor ${floor - 1} first!`);
+                return;
+            }
+            if (floor < 1) {
+                exitToSurface();
+                return;
+            }
+            
+            notify(`🏔️ Going to Floor ${floor}...`);
+            
+            setTimeout(() => {
+                generateCave(floor);
+                if (floor > game.maxFloorReached) {
+                    game.maxFloorReached = floor;
+                    notify(`🎉 New floor unlocked: Floor ${floor}!`);
+                    
+                    // Special announcements for milestone floors
+                    if (floor === 5) notify('💜 Epic ores now available!');
+                    else if (floor === 7) notify('🔥 Legendary ores now available!');
+                    else if (floor === 10) notify('🌑 Mythic ores now available!');
+                    else if (floor === 15) notify('✨ Transcendent ores now available!');
+                    else if (floor === 20) notify('👑 Divine ores now available!');
+                }
+                saveGame();
+            }, 500);
+        }
+        
+        function enterCave(floor = 1) {
+            document.getElementById('surfaceScreen').style.display = 'none';
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('depthIndicator').classList.remove('hidden');
+            document.getElementById('crosshair').style.display = 'block';
+            
+            game.running = true;
+            game.inCave = true;
+            
+            generateCave(floor);
+            renderer.domElement.requestPointerLock();
+            startCaveSounds();
+        }
+        
+        // ==================== PLAYER MOVEMENT ====================
+        const moveSpeed = 0.15;
+        
+        function updatePlayer(delta) {
+            if (!game.running || !game.inCave) return;
+            
+            const moveDir = new THREE.Vector3();
+            
+            if (keys['KeyW']) moveDir.z -= 1;
+            if (keys['KeyS']) moveDir.z += 1;
+            if (keys['KeyA']) moveDir.x -= 1;
+            if (keys['KeyD']) moveDir.x += 1;
+            
+            if (moveDir.length() > 0) {
+                moveDir.normalize();
+                const yawOnly = new THREE.Euler(0, camera.rotation.y, 0, 'YXZ');
+                moveDir.applyEuler(yawOnly);
+                
+                const newX = camera.position.x + moveDir.x * moveSpeed;
+                const newZ = camera.position.z + moveDir.z * moveSpeed;
+                
+                if (!checkCollision(newX, newZ)) {
+                    camera.position.x = newX;
+                    camera.position.z = newZ;
+                }
+            }
+            
+            const maxDist = CAVE_SIZE/2 - 3;
+            camera.position.x = Math.max(-maxDist, Math.min(maxDist, camera.position.x));
+            camera.position.z = Math.max(-maxDist, Math.min(maxDist, camera.position.z));
+            
+            torchLight.position.copy(camera.position);
+            glowLight.position.copy(camera.position);
+            glowLight.position.y += 1;
+            
+            checkNearInteractables();
+        }
+        
+        function checkCollision(x, z) {
+            for (let wall of caveWalls) {
+                const dx = Math.abs(x - wall.position.x);
+                const dz = Math.abs(z - wall.position.z);
+                if (dx < 1.5 && dz < 1.5) return true;
+            }
+            return false;
+        }
+        
+        function checkNearInteractables() {
+            const prompt = document.getElementById('interactionPrompt');
+            game.nearInteractable = null;
+            
+            for (let obj of game.interactables) {
+                const dist = camera.position.distanceTo(obj.position);
+                if (dist < 4) {
+                    game.nearInteractable = obj;
+                    prompt.textContent = obj.userData.label;
+                    prompt.style.display = 'block';
+                    return;
+                }
+            }
+            
+            prompt.style.display = 'none';
+        }
+        
+        // ==================== MINING ====================
+        function updateMining(delta) {
+            if (!isMining || !game.running || !game.inCave) {
+                document.getElementById('targetInfo').classList.remove('visible');
+                return;
+            }
+            
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            const intersects = raycaster.intersectObjects(game.ores.concat(game.treasures));
+            
+            if (intersects.length > 0 && intersects[0].distance < 4) {
+                const target = intersects[0].object;
+                
+                if (target.userData.type === 'treasure' && !target.userData.opened) {
+                    target.userData.opened = true;
+                    game.coins += target.userData.value;
+                    notify(`💰 Found ${target.userData.value} coins!`);
+                    updateHUD();
+                    saveGame();
+                    target.material.color.setHex(0x3a2510);
+                    target.material.emissive.setHex(0x000000);
+                    return;
+                }
+                
+                if (!target.userData.hardness) return;
+                
+                const oreData = ORE_TYPES[target.userData.type];
+                const pickaxePower = UPGRADES.pickaxe.levels[game.upgrades.pickaxe];
+                
+                if (pickaxePower < target.userData.hardness * 0.5) {
+                    document.getElementById('targetInfo').classList.add('visible');
+                    document.getElementById('targetName').textContent = oreData.name;
+                    document.getElementById('targetName').style.color = '#' + oreData.color.toString(16).padStart(6, '0');
+                    document.getElementById('targetHardness').textContent = '⚠️ Pickaxe too weak!';
+                    document.getElementById('targetHardness').style.color = '#ff4444';
+                    return;
+                }
+                
+                document.getElementById('targetInfo').classList.add('visible');
+                document.getElementById('targetName').textContent = oreData.name;
+                document.getElementById('targetName').style.color = '#' + oreData.color.toString(16).padStart(6, '0');
+                document.getElementById('targetHardness').textContent = `Hardness: ${target.userData.hardness.toFixed(1)}`;
+                document.getElementById('targetHardness').style.color = '#aaa';
+                
+                if (game.currentMining !== target) {
+                    game.currentMining = target;
+                    game.miningProgress = 0;
+                }
+                
+                const mineSpeed = pickaxePower / target.userData.hardness;
+                game.miningProgress += delta * mineSpeed * 2;
+                
+                document.getElementById('miningProgress').style.display = 'block';
+                document.getElementById('miningProgressFill').style.width = (game.miningProgress * 100) + '%';
+                
+                if (Math.random() < 0.3) {
+                    createParticle(intersects[0].point, oreData.color);
+                }
+                
+                if (game.miningProgress >= 1) {
+                    mineOre(target);
+                    game.miningProgress = 0;
+                    game.currentMining = null;
+                    document.getElementById('miningProgress').style.display = 'none';
+                }
+            } else {
+                document.getElementById('targetInfo').classList.remove('visible');
+                if (game.currentMining) {
+                    game.miningProgress = 0;
+                    game.currentMining = null;
+                    document.getElementById('miningProgress').style.display = 'none';
+                }
+            }
+        }
+        
+        function mineOre(ore) {
+            const type = ore.userData.type;
+            const oreData = ORE_TYPES[type];
+            
+            const currentItems = Object.values(game.inventory).reduce((a, b) => a + b, 0);
+            const maxItems = UPGRADES.backpack.levels[game.upgrades.backpack];
+            
+            if (currentItems >= maxItems) {
+                notify('🎒 Backpack full! Go to surface to sell (find EXIT)');
+                return;
+            }
+            
+            game.inventory[type] = (game.inventory[type] || 0) + 1;
+            
+            for (let i = 0; i < 10; i++) {
+                createParticle(ore.position.clone(), oreData.color);
+            }
+            
+            notify(`${oreData.icon} Mined ${oreData.name}!`);
+            updateHUD();
+            saveGame();
+            respawnOre(ore);
+        }
+        
+        // ==================== PARTICLES ====================
+        function createParticle(position, color) {
+            const geo = new THREE.SphereGeometry(0.05, 4, 4);
+            const mat = new THREE.MeshBasicMaterial({ color });
+            const particle = new THREE.Mesh(geo, mat);
+            particle.position.copy(position);
+            particle.userData = {
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    Math.random() * 0.2,
+                    (Math.random() - 0.5) * 0.2
+                ),
+                life: 1
+            };
+            scene.add(particle);
+            game.particles.push(particle);
+        }
+        
+        function updateParticles(delta) {
+            game.particles = game.particles.filter(p => {
+                p.position.add(p.userData.velocity);
+                p.userData.velocity.y -= 0.01;
+                p.userData.life -= delta * 2;
+                
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    return false;
+                }
+                return true;
+            });
+        }
+        
+        // ==================== SHOP ====================
+        function openShop() {
+            document.getElementById('shopModal').style.display = 'flex';
+            renderShop();
+        }
+        
+        function closeShop() {
+            document.getElementById('shopModal').style.display = 'none';
+        }
+        
+        function renderShop() {
+            const sellGrid = document.getElementById('sellGrid');
+            sellGrid.innerHTML = '';
+            
+            Object.entries(game.inventory).forEach(([type, count]) => {
+                if (count > 0) {
+                    const oreData = ORE_TYPES[type];
+                    const div = document.createElement('div');
+                    div.className = 'shop-item';
+                    div.innerHTML = `
+                        <div class="shop-item-icon">${oreData.icon}</div>
+                        <div class="shop-item-name">${oreData.name} x${count}</div>
+                        <div class="shop-item-price">💰 ${oreData.value * count}</div>
+                    `;
+                    div.onclick = () => sellOre(type);
+                    sellGrid.appendChild(div);
+                }
+            });
+            
+            if (sellGrid.children.length === 0) {
+                sellGrid.innerHTML = '<div style="color:#666;padding:20px;">No ores to sell</div>';
+            }
+            
+            const upgradesGrid = document.getElementById('upgradesGrid');
+            upgradesGrid.innerHTML = '';
+            
+            Object.entries(UPGRADES).forEach(([key, upgrade]) => {
+                const level = game.upgrades[key];
+                const maxLevel = upgrade.levels.length - 1;
+                const isMaxed = level >= maxLevel;
+                const cost = isMaxed ? 'MAX' : upgrade.costs[level];
+                const currentValue = upgrade.levels[level];
+                const nextValue = isMaxed ? currentValue : upgrade.levels[level + 1];
+                
+                const div = document.createElement('div');
+                div.className = `upgrade-item ${isMaxed ? 'maxed' : ''}`;
+                div.innerHTML = `
+                    <div class="upgrade-info">
+                        <div class="upgrade-icon">${upgrade.icon}</div>
+                        <div class="upgrade-details">
+                            <h4>${upgrade.name}</h4>
+                            <p>${upgrade.desc}</p>
+                            <div class="upgrade-level">Level ${level + 1}/${maxLevel + 1} (${currentValue}${isMaxed ? '' : ' → ' + nextValue})</div>
+                        </div>
+                    </div>
+                    <div class="upgrade-cost">${isMaxed ? '✓ MAXED' : '💰 ' + cost}</div>
+                `;
+                if (!isMaxed) {
+                    div.onclick = () => buyUpgrade(key);
+                }
+                upgradesGrid.appendChild(div);
+            });
+        }
+        
+        function sellOre(type) {
+            const count = game.inventory[type] || 0;
+            if (count <= 0) return;
+            
+            const value = ORE_TYPES[type].value * count;
+            game.coins += value;
+            game.inventory[type] = 0;
+            
+            notify(`💰 Sold ${ORE_TYPES[type].name} for ${value} coins!`);
+            document.getElementById('surfaceCoins').textContent = `💰 ${game.coins.toLocaleString()} Coins`;
+            saveGame();
+            renderShop();
+        }
+        
+        function buyUpgrade(key) {
+            const upgrade = UPGRADES[key];
+            const level = game.upgrades[key];
+            const cost = upgrade.costs[level];
+            
+            if (game.coins >= cost) {
+                game.coins -= cost;
+                game.upgrades[key]++;
+                notify(`⬆️ Upgraded ${upgrade.name} to Level ${game.upgrades[key] + 1}!`);
+                document.getElementById('surfaceCoins').textContent = `💰 ${game.coins.toLocaleString()} Coins`;
+                saveGame();
+                renderShop();
+            } else {
+                notify('❌ Not enough coins!');
+            }
+        }
+        
+        // ==================== UI ====================
+        function updateHUD() {
+            document.getElementById('coins').textContent = game.coins.toLocaleString();
+            
+            const currentItems = Object.values(game.inventory).reduce((a, b) => a + b, 0);
+            const maxItems = UPGRADES.backpack.levels[game.upgrades.backpack];
+            document.getElementById('backpackStatus').textContent = `${currentItems}/${maxItems}`;
+            
+            document.getElementById('pickaxeLevel').textContent = `Lv.${game.upgrades.pickaxe + 1}`;
+            document.getElementById('luckLevel').textContent = `Lv.${game.upgrades.luck + 1}`;
+            document.getElementById('floorDisplay').textContent = `Floor ${game.currentFloor}`;
+            
+            const grid = document.getElementById('inventoryGrid');
+            grid.innerHTML = '';
+            
+            Object.entries(ORE_TYPES).forEach(([type, data]) => {
+                const count = game.inventory[type] || 0;
+                if (count > 0) {
+                    const slot = document.createElement('div');
+                    slot.className = 'inv-slot filled';
+                    slot.innerHTML = `${data.icon}<span class="inv-count">${count}</span>`;
+                    slot.title = `${data.name} x${count}`;
+                    grid.appendChild(slot);
+                }
+            });
+            
+            const dist = Math.floor(Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2));
+            document.getElementById('depthValue').textContent = dist + (game.currentFloor - 1) * 50;
+            document.getElementById('floorValue').textContent = `Floor ${game.currentFloor}`;
+        }
+        
+        function notify(message) {
+            const container = document.getElementById('notifications');
+            const div = document.createElement('div');
+            div.className = 'notification';
+            div.textContent = message;
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+        
+        // ==================== GAME INIT ====================
+        loadGame();
+        
+        document.getElementById('startBtn').addEventListener('click', () => {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('surfaceScreen').style.display = 'flex';
+            updateSurfaceScreen();
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+        
+        document.getElementById('surfaceShopBtn').addEventListener('click', openShop);
+        document.getElementById('closeShop').addEventListener('click', closeShop);
+        
+        document.getElementById('enterCaveBtn').addEventListener('click', () => {
+            // Enter the highest unlocked floor by default
+            enterCave(game.maxFloorReached);
+        });
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Auto-save every 30 seconds
+        setInterval(() => {
+            if (game.running) saveGame();
+        }, 30000);
+        
+        // ==================== GAME LOOP ====================
+        let lastTime = 0;
+        
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            let delta = (time - lastTime) / 1000;
+            lastTime = time;
+            delta = Math.min(delta, 0.1);
+            
+            if (game.running && game.inCave && isLocked) {
+                updatePlayer(delta);
+                updateMining(delta);
+                updateParticles(delta);
+                updateHUD();
+            }
+            
+            if (game.inCave) {
+                torchLight.intensity = 1.3 + Math.sin(time * 0.01) * 0.2 + Math.random() * 0.1;
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate(0);
+    </script>
+</body>
+</html>
