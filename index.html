@@ -577,5 +577,38 @@
         toggleSettingsMenu();
     }
   </script>
+  <script>
+    // Function to mute all media elements (audio and video)
+    function muteAllMedia() {
+        document.querySelectorAll('audio, video').forEach(mediaElement => {
+            // Store the original volume if needed, but 'muted = true' is simpler
+            mediaElement.muted = true;
+            // You can also pause if desired
+            // mediaElement.pause();
+        });
+        console.log('Tab inactive: Muted all media.');
+    }
+
+    // Function to unmute all media elements
+    function unmuteAllMedia() {
+        document.querySelectorAll('audio, video').forEach(mediaElement => {
+            mediaElement.muted = false;
+            // If you paused, you might try to play, but user interaction rules may block autoplay
+            // mediaElement.play(); 
+        });
+        console.log('Tab active: Unmuted all media.');
+    }
+
+    // Listen for the visibilitychange event
+    document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === "hidden") {
+            // Tab is inactive/hidden
+            muteAllMedia();
+        } else {
+            // Tab is active/visible
+            unmuteAllMedia();
+        }
+    });
+</script>
 </body>
 </html>
